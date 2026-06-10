@@ -35,3 +35,5 @@ dist/
 *.sqlite3
 *.log
 *.log
+
+PA*.md

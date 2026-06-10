@@ -12,7 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d retail_ai"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d retail_ai" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,6 +23,9 @@ services:
       dockerfile: Dockerfile
     container_name: retail_ai_app
     environment:
+      REDIS_URL: redis://redis:6379/0
+      REDIS_SESSION_TTL_SECONDS: 86400
+      REDIS_SESSION_PREFIX: retail-ai:session
       APP_ENV: development
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/retail_ai
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -31,12 +34,28 @@ services:
     ports:
       - "8000:8000"
     depends_on:
+      redis:
+        condition: service_healthy
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
       interval: 5s
       timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: retail_ai_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
       retries: 10
 
   frontend:
@@ -62,3 +81,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

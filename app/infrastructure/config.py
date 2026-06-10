@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     embedding_model: str = "text-embedding-3-small"
+    redis_url: str = "redis://localhost:6379/0"
+    redis_session_ttl_seconds: int = 86_400
+    redis_session_prefix: str = "retail-ai:session"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
