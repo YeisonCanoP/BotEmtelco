@@ -17,9 +17,46 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx>=0.28.0",
+    "pre-commit>=4.6.0",
+    "pyrefly>=1.0.0",
     "pytest>=8.3.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.16",
 ]
 
 [tool.pytest.ini_options]
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.pyrefly]
+project-includes = [
+    "app/**/*.py",
+    "tests/**/*.py",
+    "main.py",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+ignore = ["B008"]
+select = [
+    "B",
+    "E",
+    "F",
+    "I",
+    "UP",
+]

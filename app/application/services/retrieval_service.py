@@ -8,7 +8,9 @@ class RetrievalService:
         self._embeddings = embeddings
         self._vector_store = vector_store
 
-    async def retrieve(self, query: str, k: int = 4, threshold: float = 0.7) -> list[KnowledgeChunk]:
+    async def retrieve(
+        self, query: str, k: int = 4, threshold: float = 0.7
+    ) -> list[KnowledgeChunk]:
         embedding = (await self._embeddings.embed([query]))[0]
         chunks = await self._vector_store.search(embedding, k)
         return [chunk for chunk in chunks if chunk.score is None or chunk.score >= threshold]
