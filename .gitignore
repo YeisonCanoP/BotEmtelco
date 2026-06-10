@@ -34,5 +34,4 @@ dist/
 *.sqlite
 *.sqlite3
 *.log
-
-PA*.md
+*.log

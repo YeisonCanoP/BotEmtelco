@@ -1,6 +1,7 @@
 services:
   db:
     image: pgvector/pgvector:pg16
+    container_name: retail_ai_db
     environment:
       POSTGRES_DB: retail_ai
       POSTGRES_USER: postgres
@@ -9,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d retail_ai"]
       interval: 5s
@@ -16,15 +18,42 @@ services:
       retries: 10
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: retail_ai_app
     environment:
+      APP_ENV: development
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/retail_ai
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: retail_ai_frontend
+    command:
+      - uv
+      - run
+      - streamlit
+      - run
+      - frontend/streamlit_app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+    environment:
+      API_BASE_URL: https://app:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      app:
+        condition: service_started
 
 volumes:
   postgres_data:
