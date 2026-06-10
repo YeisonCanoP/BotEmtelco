@@ -1,0 +1,47 @@
+erDiagram
+    CUSTOMERS ||--o{ ORDERS : realiza
+    PRODUCTS ||--o{ WARRANTIES : tiene
+    ORDERS ||--o{ WARRANTIES : incluye
+
+    PRODUCTS {
+        string sku PK
+        string name
+        string category
+        int price_COP
+        jsonb specs
+        int stock
+    }
+
+    CUSTOMERS {
+        string identification PK
+        string full_name
+        string phone
+        string email
+        string kind
+        datetime created_at
+    }
+
+    ORDERS {
+        int id PK
+        string customer_id FK
+        string status
+        date estimated_delivery
+        string address
+    }
+
+    WARRANTIES {
+        int id PK
+        string product_sku FK
+        int order_id FK
+        boolean active
+        date expires_on
+    }
+
+    KB_CHUNKS {
+        int id PK
+        string source
+        string title
+        text content
+        jsonb metadata
+        vector embedding_1536
+    }

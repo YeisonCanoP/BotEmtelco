@@ -1,0 +1,1 @@
+"""OpenAI chat completion adapter."""

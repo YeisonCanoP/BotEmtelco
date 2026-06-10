@@ -1,0 +1,1 @@
+"""PostgreSQL warranty repository."""

@@ -1,0 +1,1 @@
+"""Customer registration use cases."""
