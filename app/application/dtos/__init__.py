@@ -1,3 +1,10 @@
+from app.application.dtos.catalog import (
+    CatalogSearchInputDTO,
+    CatalogSearchResultDTO,
+    CompareProductsInputDTO,
+    ProductComparisonResultDTO,
+    ProductResultDTO,
+)
 from app.application.dtos.chat import (
     AgentRequestDTO,
     AgentResponseDTO,
@@ -11,9 +18,14 @@ from app.application.dtos.chat import (
 __all__ = [
     "AgentRequestDTO",
     "AgentResponseDTO",
+    "CatalogSearchInputDTO",
+    "CatalogSearchResultDTO",
     "ChatMessageDTO",
+    "CompareProductsInputDTO",
     "ConversationDTO",
     "LLMRequestDTO",
     "LLMResponseDTO",
     "MessageRole",
+    "ProductComparisonResultDTO",
+    "ProductResultDTO",
 ]
