@@ -106,6 +106,20 @@ class Settings(BaseSettings):
         description="Dimensiones de los embeddings almacenados en pgvector.",
     )
 
+    knowledge_score_threshold: float = Field(
+        default=0.30,
+        ge=0.0,
+        le=1.0,
+        description="Similitud mínima absoluta para aceptar conocimiento recuperado.",
+    )
+
+    knowledge_score_margin: float = Field(
+        default=0.10,
+        ge=0.0,
+        le=1.0,
+        description="Margen máximo permitido respecto al mejor resultado semántico.",
+    )
+
     redis_url: str = Field(
         default="redis://localhost:6379/0",
         description="URL de conexión a Redis.",

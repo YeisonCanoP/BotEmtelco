@@ -6,7 +6,7 @@ un resumen del caso. La sesión y el cliente se obtienen desde el contexto
 interno y nunca se reciben como argumentos del modelo de lenguaje.
 """
 
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -14,6 +14,18 @@ from app.domain.entities import (
     HumanHandoffReason,
     HumanHandoffStatus,
 )
+
+HumanHandoffInputReason = Literal[
+    "USER_REQUEST",
+    "INTENT_NOT_UNDERSTOOD",
+]
+"""
+Motivos que el modelo puede enviar a la herramienta de atención humana.
+
+Se declara como `Literal` para producir un enum inline en JSON Schema. OpenAI
+rechaza propiedades que combinan `$ref` con metadatos adicionales, como la
+descripción específica del campo.
+"""
 
 
 class HumanHandoffInputDTO(BaseModel):
@@ -27,7 +39,7 @@ class HumanHandoffInputDTO(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    reason: HumanHandoffReason = Field(
+    reason: HumanHandoffInputReason = Field(
         description=(
             "Motivo del escalamiento. Usa USER_REQUEST cuando el usuario pide "
             "una persona e INTENT_NOT_UNDERSTOOD solo después de una aclaración fallida."

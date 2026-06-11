@@ -20,10 +20,14 @@ Responsabilidades principales:
 
 """
 
+import logging
+
 from app.application.exceptions import KnowledgeServiceError
 from app.application.ports.embedding_provider import EmbeddingProvider
 from app.application.ports.vector_store import VectorStore
 from app.domain.value_objects import KnowledgeChunk
+
+logger = logging.getLogger(__name__)
 
 
 class RetrievalService:
@@ -42,6 +46,7 @@ class RetrievalService:
         _vector_store: Almacenamiento vectorial usado para buscar fragmentos.
         _score_threshold: Puntaje mínimo de similitud requerido para aceptar un
             fragmento como relevante.
+        _score_margin: Diferencia máxima permitida respecto al mejor resultado.
 
     Raises:
         ValueError: Si `score_threshold` no está entre 0.0 y 1.0.
@@ -51,7 +56,8 @@ class RetrievalService:
         self,
         embeddings: EmbeddingProvider,
         vector_store: VectorStore,
-        score_threshold: float = 0.7,
+        score_threshold: float = 0.30,
+        score_margin: float = 0.10,
     ) -> None:
         """
         Inicializa el servicio de recuperación.
@@ -62,6 +68,8 @@ class RetrievalService:
                 vectorial.
             score_threshold: Puntaje mínimo de similitud requerido para retornar
                 un fragmento. Debe estar entre 0.0 y 1.0.
+            score_margin: Diferencia máxima permitida respecto al fragmento con
+                mayor similitud. Debe estar entre 0.0 y 1.0.
 
         Raises:
             ValueError: Si `score_threshold` está fuera del rango permitido.
@@ -70,9 +78,13 @@ class RetrievalService:
         if not 0.0 <= score_threshold <= 1.0:
             raise ValueError("score_threshold debe estar entre 0 y 1")
 
+        if not 0.0 <= score_margin <= 1.0:
+            raise ValueError("score_margin debe estar entre 0 y 1")
+
         self._embeddings = embeddings
         self._vector_store = vector_store
         self._score_threshold = score_threshold
+        self._score_margin = score_margin
 
     async def retrieve(
         self,
@@ -90,9 +102,10 @@ class RetrievalService:
         El límite solicitado se normaliza entre 1 y 8 para evitar búsquedas
         demasiado amplias desde el agente o desde una herramienta.
 
-        Finalmente, los fragmentos obtenidos se filtran por `score_threshold`.
-        Esto garantiza que el servicio solo retorne contenido con una similitud
-        mínima aceptable.
+        Finalmente, los fragmentos se filtran con un umbral adaptativo. El
+        resultado debe superar el mínimo absoluto y permanecer cerca del mejor
+        score encontrado. Esto tolera consultas con errores ortográficos sin
+        incluir temas claramente menos relacionados.
 
         Args:
             query: Pregunta, necesidad o texto que se desea resolver usando la
@@ -126,8 +139,29 @@ class RetrievalService:
             limit=normalized_limit,
         )
 
-        return [
+        scored_chunks = [chunk for chunk in chunks if chunk.score is not None]
+
+        if not scored_chunks:
+            return []
+
+        best_score = max(chunk.score for chunk in scored_chunks if chunk.score is not None)
+        adaptive_threshold = max(
+            self._score_threshold,
+            best_score - self._score_margin,
+        )
+
+        results = [
             chunk
-            for chunk in chunks
-            if chunk.score is not None and chunk.score >= self._score_threshold
+            for chunk in scored_chunks
+            if chunk.score is not None and chunk.score >= adaptive_threshold
         ]
+
+        logger.info(
+            "Knowledge results filtered candidates=%s accepted=%s best_score=%.4f threshold=%.4f",
+            len(scored_chunks),
+            len(results),
+            best_score,
+            adaptive_threshold,
+        )
+
+        return results

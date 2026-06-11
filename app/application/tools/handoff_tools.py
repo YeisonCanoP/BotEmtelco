@@ -16,7 +16,7 @@ from app.application.dtos import (
 from app.application.ports.repositories import HumanHandoffRepository
 from app.application.services.conversation_context import ConversationContext
 from app.application.tools.base import Tool
-from app.domain.entities import HumanHandoff
+from app.domain.entities import HumanHandoff, HumanHandoffReason
 
 
 def human_handoff_to_dto(
@@ -122,7 +122,7 @@ class RequestHumanSupportTool(
             handoff_id=generate_handoff_id(),
             session_id=conversation.session_id,
             customer_identification=customer_id,
-            reason=arguments.reason,
+            reason=HumanHandoffReason(arguments.reason),
             summary=arguments.summary,
         )
 

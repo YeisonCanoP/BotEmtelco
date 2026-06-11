@@ -291,10 +291,13 @@ def get_retrieval_service(
         similitud.
     """
 
+    settings = get_settings()
+
     return RetrievalService(
         embeddings=embedding_provider,
         vector_store=vector_store,
-        score_threshold=0.7,
+        score_threshold=settings.knowledge_score_threshold,
+        score_margin=settings.knowledge_score_margin,
     )
 
 
