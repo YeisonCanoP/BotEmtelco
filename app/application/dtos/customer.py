@@ -27,6 +27,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.domain.entities import CustomerKind
 from app.domain.value_objects.contact import Email, Phone
 from app.domain.value_objects.identity import (
     FullName,
@@ -213,7 +214,7 @@ class CustomerResultDTO(BaseModel):
         max_length=100,
     )
 
-    kind: Literal["NEW", "FREQUENT"]
+    kind: CustomerKind
 
 
 class CustomerLookupResultDTO(BaseModel):

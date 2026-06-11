@@ -25,7 +25,7 @@ from app.application.exceptions import (
     RepositoryError,
 )
 from app.application.ports.repositories import CustomerRepository
-from app.domain.entities import Customer
+from app.domain.entities import Customer, is_customer_kind
 from app.infrastructure.db.models import CustomerModel
 
 
@@ -252,6 +252,11 @@ class SqlCustomerRepository(CustomerRepository):
         Returns:
             Entidad `Customer` independiente de la infraestructura.
         """
+
+        if not is_customer_kind(model.kind):
+            raise RepositoryError(
+                f"Clasificación de cliente inválida en persistencia: {model.kind!r}"
+            )
 
         return Customer(
             identification=model.identification,

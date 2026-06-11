@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.application.exceptions import RepositoryError
 from app.application.ports.repositories import OrderRepository
-from app.domain.entities import Order
+from app.domain.entities import Order, OrderStatus
 from app.infrastructure.db.models import OrderModel
 
 UPDATABLE_ORDER_STATUSES = frozenset({"CONFIRMED", "PREPARING"})
@@ -100,10 +100,17 @@ class SqlOrderRepository(OrderRepository):
 
     @staticmethod
     def _to_entity(model: OrderModel) -> Order:
+        try:
+            status = OrderStatus(model.status)
+        except ValueError as exc:
+            raise RepositoryError(
+                f"Estado de pedido inválido en persistencia: {model.status!r}"
+            ) from exc
+
         return Order(
             id=model.id,
             customer_id=model.customer_id,
-            status=model.status,
+            status=status,
             estimated_delivery=model.estimated_delivery,
             address=model.address,
         )

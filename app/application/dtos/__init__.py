@@ -1,5 +1,8 @@
 """
-DTOs compartidos por la capa de aplicación.
+DTO compartidos por la capa de aplicación.
+
+Este módulo centraliza las exportaciones para evitar que servicios,
+herramientas e interfaces dependan de las rutas internas de cada archivo.
 """
 
 from app.application.dtos.catalog import (
@@ -14,7 +17,10 @@ from app.application.dtos.chat import (
     AgentResponseDTO,
     ChatMessageDTO,
     ConversationDTO,
+    CustomerFlowStatus,
+    CustomerRegistrationDraftDTO,
     MessageRole,
+    PendingAction,
 )
 from app.application.dtos.customer import (
     CustomerLookupInputDTO,
@@ -39,14 +45,17 @@ __all__ = [
     "ChatMessageDTO",
     "CompareProductsInputDTO",
     "ConversationDTO",
-    "LLMRequestDTO",
-    "LLMResponseDTO",
-    "MessageRole",
+    "CustomerFlowStatus",
     "CustomerLookupInputDTO",
     "CustomerLookupResultDTO",
+    "CustomerRegistrationDraftDTO",
     "CustomerRegistrationInputDTO",
     "CustomerRegistrationResultDTO",
     "CustomerResultDTO",
+    "LLMRequestDTO",
+    "LLMResponseDTO",
+    "MessageRole",
+    "PendingAction",
     "ProductComparisonResultDTO",
     "ProductResultDTO",
     "ToolCallDTO",

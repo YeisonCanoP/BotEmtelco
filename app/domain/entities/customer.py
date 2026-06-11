@@ -11,6 +11,15 @@ como FastAPI, SQLAlchemy, PostgreSQL, Redis o Pydantic.
 """
 
 from dataclasses import dataclass
+from typing import Literal, TypeGuard
+
+CustomerKind = Literal["NEW", "FREQUENT"]
+
+
+def is_customer_kind(value: str) -> TypeGuard[CustomerKind]:
+    """Indica si un valor corresponde a una clasificación de cliente válida."""
+
+    return value in ("NEW", "FREQUENT")
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,4 +58,4 @@ class Customer:
     full_name: str
     phone: str
     email: str
-    kind: str = "NEW"
+    kind: CustomerKind = "NEW"
