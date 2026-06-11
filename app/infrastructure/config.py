@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -73,20 +73,6 @@ class Settings(BaseSettings):
         description="Cantidad máxima de tokens permitidos en la respuesta del modelo.",
     )
 
-    openai_temperature: float | None = Field(
-        default=None,
-        ge=0,
-        le=2,
-        description="Parámetro de muestreo por temperatura. No debe usarse junto con top_p.",
-    )
-
-    openai_top_p: float | None = Field(
-        default=None,
-        ge=0,
-        le=1,
-        description="Parámetro de muestreo nucleus sampling. No debe usarse junto con temperature.",
-    )
-
     openai_timeout_seconds: float = Field(
         default=60,
         gt=0,
@@ -137,51 +123,6 @@ class Settings(BaseSettings):
         default=5,
         description="Cantidad máxima de archivos históricos de logs que se conservan.",
     )
-
-    @field_validator(
-        "openai_temperature",
-        "openai_top_p",
-        mode="before",
-    )
-    @classmethod
-    def empty_sampling_value_to_none(
-        cls,
-        value: object,
-    ) -> object:
-        """
-        Convierte valores vacíos de muestreo en `None`.
-
-        Permite que variables de entorno vacías para `OPENAI_TEMPERATURE`
-        u `OPENAI_TOP_P` sean interpretadas como valores no configurados.
-
-        Args:
-            value: Valor recibido desde la configuración.
-
-        Returns:
-            object: `None` si el valor es un string vacío; de lo contrario,
-            retorna el valor original.
-        """
-        if isinstance(value, str) and not value.strip():
-            return None
-
-        return value
-
-    @model_validator(mode="after")
-    def validate_sampling_parameters(self) -> "Settings":
-        """
-        Valida que no se configuren simultáneamente `temperature` y `top_p`.
-
-        Returns:
-            Settings: Instancia de configuración validada.
-
-        Raises:
-            ValueError: Si `openai_temperature` y `openai_top_p` tienen valor
-            al mismo tiempo.
-        """
-        if self.openai_temperature is not None and self.openai_top_p is not None:
-            raise ValueError("Configura OPENAI_TEMPERATURE o OPENAI_TOP_P, pero no ambos.")
-
-        return self
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

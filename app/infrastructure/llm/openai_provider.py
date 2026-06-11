@@ -100,8 +100,6 @@ class OpenAIProvider:
                 reasoning=reasoning,
                 text=text,
                 max_output_tokens=self._settings.openai_max_output_tokens,
-                temperature=self._settings.openai_temperature,
-                top_p=self._settings.openai_top_p,
                 store=False,
                 stream=False,
             )

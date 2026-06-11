@@ -31,12 +31,10 @@ services:
       REDIS_SESSION_PREFIX: retail-ai:session
 
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      OPENAI_MODEL: gpt-5-mini
       OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-low}
       OPENAI_VERBOSITY: ${OPENAI_VERBOSITY:-low}
       OPENAI_MAX_OUTPUT_TOKENS: ${OPENAI_MAX_OUTPUT_TOKENS:-800}
-      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-}
-      OPENAI_TOP_P: ${OPENAI_TOP_P:-}
       OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-60}
       OPENAI_MAX_RETRIES: ${OPENAI_MAX_RETRIES:-2}
 
@@ -84,11 +82,12 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.frontend
     container_name: retail_ai_frontend
     command:
       - uv
       - run
+      - --no-sync
       - streamlit
       - run
       - frontend/streamlit_app.py

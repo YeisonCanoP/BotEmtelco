@@ -16,6 +16,15 @@ router = APIRouter(
 )
 
 
+@router.get("/")
+async def root() -> dict[str, str]:
+    return {
+        "name": "Agente IA Retail",
+        "status": "running",
+        "docs": "/docs",
+    }
+
+
 @router.get("/health")
 async def health() -> dict[str, str]:
     """

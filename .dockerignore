@@ -1,0 +1,38 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Git and IDE
+.git/
+.github/
+.idea/
+.vscode/
+
+# Environment and secrets
+.env
+.env.*
+
+# Local artifacts
+logs/
+*.log
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Documentation and temporary files
+PA*.md
