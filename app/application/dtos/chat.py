@@ -79,6 +79,7 @@ class PendingAction(StrEnum):
     UPDATE_ORDER_ADDRESS = "UPDATE_ORDER_ADDRESS"
     CHECK_WARRANTY = "CHECK_WARRANTY"
     CREATE_WARRANTY_CLAIM = "CREATE_WARRANTY_CLAIM"
+    ESCALATE_WARRANTY_CLAIM = "ESCALATE_WARRANTY_CLAIM"
 
 
 class ChatMessageDTO(BaseModel):
@@ -182,6 +183,59 @@ class CustomerRegistrationDraftDTO(BaseModel):
         return not self.missing_fields()
 
 
+class WarrantyClaimDraftDTO(BaseModel):
+    """
+    Datos parciales conservados durante una gestión de garantía.
+
+    Este borrador permite continuar la operación después de solicitar
+    identificación, seleccionar un producto, consultar cobertura, registrar
+    el reclamo o escalar el ticket.
+
+    No reemplaza la información persistida en PostgreSQL. Solo conserva
+    referencias temporales de la conversación.
+    """
+
+    order_number: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=30,
+        pattern=r"^[A-Z0-9-]+$",
+    )
+
+    product_sku: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=30,
+        pattern=r"^[A-Z0-9-]+$",
+    )
+
+    warranty_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=30,
+        pattern=r"^[A-Z0-9-]+$",
+    )
+
+    issue_description: str | None = Field(
+        default=None,
+        min_length=10,
+        max_length=2_000,
+    )
+
+    ticket_number: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=40,
+        pattern=r"^[A-Z0-9-]+$",
+    )
+
+    escalation_reason: str | None = Field(
+        default=None,
+        min_length=10,
+        max_length=1_000,
+    )
+
+
 class ConversationDTO(BaseModel):
     """
     Representa el estado completo y persistente de una conversación.
@@ -229,6 +283,10 @@ class ConversationDTO(BaseModel):
 
     registration_draft: CustomerRegistrationDraftDTO = Field(
         default_factory=CustomerRegistrationDraftDTO,
+    )
+
+    warranty_claim_draft: WarrantyClaimDraftDTO = Field(
+        default_factory=WarrantyClaimDraftDTO,
     )
 
     pending_action: PendingAction | None = None

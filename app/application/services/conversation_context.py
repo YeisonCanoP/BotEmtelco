@@ -13,6 +13,7 @@ las herramientas puedan consultar y modificar información relevante como:
 - Datos parciales de registro de un cliente nuevo.
 - Operación pendiente por retomar.
 - Referencias asociadas a pedidos, productos o garantías.
+- Borrador temporal para consultas, reclamos y escalamiento de garantías.
 
 Al finalizar el procesamiento del mensaje, el servicio principal debe persistir
 nuevamente la conversación actualizada.
@@ -23,6 +24,7 @@ from app.application.dtos.chat import (
     CustomerFlowStatus,
     CustomerRegistrationDraftDTO,
     PendingAction,
+    WarrantyClaimDraftDTO,
 )
 
 
@@ -57,7 +59,7 @@ class ConversationContext:
         """
         Asocia una conversación al contexto actual.
 
-        Normalmente este métodse invoca al inicio de una petición, después de
+        Normalmente este métod se invoca al inicio de una petición, después de
         recuperar la conversación desde Redis o después de crear una nueva
         sesión.
 
@@ -174,7 +176,7 @@ class ConversationContext:
         """
         Elimina la identidad del cliente asociada a la sesión.
 
-        Este métod devuelve la conversación al estado inicial de identificación.
+        Este métoddevuelve la conversación al estado inicial de identificación.
         Puede usarse cuando el usuario desea cambiar de cliente, cerrar el flujo
         actual o corregir una identificación entregada previamente.
 
@@ -206,13 +208,14 @@ class ConversationContext:
         - Consultar el estado de un pedido.
         - Actualizar la dirección de entrega.
         - Validar o registrar una garantía.
+        - Escalar un reclamo de garantía.
         - Consultar, comparar o recomendar productos si falta algún dato clave.
 
         Args:
             action: Operación que el agente debe continuar más adelante.
             reference: Dato asociado a la operación pendiente, como número de
-                pedido, nombre del producto, identificador de garantía o una
-                descripción breve de la necesidad del cliente.
+                pedido, nombre del producto, identificador de garantía, número
+                de ticket o una descripción breve de la necesidad del cliente.
         """
 
         conversation = self.conversation
@@ -233,3 +236,173 @@ class ConversationContext:
 
         conversation.pending_action = None
         conversation.pending_reference = None
+
+    def remember_warranty_lookup(
+        self,
+        order_number: str,
+        product_sku: str | None = None,
+    ) -> None:
+        """
+        Conserva los datos necesarios para consultar una garantía.
+
+        Este métod se usa cuando el usuario solicita validar garantía, pero el
+        flujo puede necesitar pasos adicionales, como verificar cliente o
+        seleccionar un producto específico dentro de un pedido.
+
+        También registra la acción pendiente `CHECK_WARRANTY` para que el agente
+        pueda retomarla después de validar al cliente o completar la información
+        faltante.
+
+        Args:
+            order_number: Número del pedido indicado por el usuario.
+            product_sku: SKU seleccionado o mencionado por el usuario. Puede ser
+                `None` cuando todavía no se conoce el producto exacto.
+        """
+
+        draft = self.conversation.warranty_claim_draft
+
+        draft.order_number = order_number
+        draft.product_sku = product_sku
+
+        self.set_pending_action(
+            action=PendingAction.CHECK_WARRANTY,
+            reference=order_number,
+        )
+
+    def remember_warranty(
+        self,
+        warranty_id: str,
+        order_number: str,
+        product_sku: str,
+    ) -> None:
+        """
+        Conserva una garantía validada para continuar el flujo de reclamo.
+
+        Este métod se usa después de confirmar que la garantía existe,
+        pertenece al cliente verificado y corresponde al producto indicado.
+
+        La información guardada permite que el agente continúe con el registro
+        del reclamo sin pedir nuevamente pedido, SKU o garantía.
+
+        Args:
+            warranty_id: Identificador de la garantía encontrada en la base de
+                datos.
+            order_number: Número del pedido propietario de la garantía.
+            product_sku: SKU del producto cubierto por la garantía.
+        """
+
+        draft = self.conversation.warranty_claim_draft
+
+        draft.warranty_id = warranty_id
+        draft.order_number = order_number
+        draft.product_sku = product_sku
+
+    def remember_warranty_issue(
+        self,
+        issue_description: str,
+    ) -> None:
+        """
+        Conserva la descripción del problema reportado por el cliente.
+
+        Este métod guarda el síntoma o falla descrita por el usuario para
+        continuar con el registro del reclamo de garantía.
+
+        También registra la acción pendiente `CREATE_WARRANTY_CLAIM`, porque una
+        vez exista garantía validada y descripción del problema, el siguiente
+        paso esperado es crear el ticket técnico.
+
+        Args:
+            issue_description: Descripción normalizada del problema reportado
+                por el cliente.
+        """
+
+        draft = self.conversation.warranty_claim_draft
+        draft.issue_description = issue_description
+
+        self.set_pending_action(
+            action=PendingAction.CREATE_WARRANTY_CLAIM,
+            reference=draft.order_number,
+        )
+
+    def remember_warranty_ticket(
+        self,
+        ticket_number: str,
+    ) -> None:
+        """
+        Conserva el número de ticket creado para el reclamo de garantía.
+
+        Este métod se usa después de registrar correctamente un reclamo. El
+        ticket queda disponible en el borrador para posibles acciones
+        posteriores, como escalar el caso a atención humana.
+
+        Al crear el ticket, se limpia la acción pendiente porque el registro del
+        reclamo ya fue completado.
+
+        Args:
+            ticket_number: Número de ticket generado al crear el reclamo.
+        """
+
+        draft = self.conversation.warranty_claim_draft
+        draft.ticket_number = ticket_number
+
+        self.clear_pending_action()
+
+    def remember_escalation(
+        self,
+        ticket_number: str,
+        escalation_reason: str,
+    ) -> None:
+        """
+        Conserva temporalmente los datos necesarios para escalar un ticket.
+
+        Este métod se usa cuando el usuario solicita atención humana o cuando
+        el agente determina que el caso requiere escalamiento.
+
+        Guarda el número de ticket y el motivo del escalamiento en el borrador
+        de garantía. Además, registra la acción pendiente
+        `ESCALATE_WARRANTY_CLAIM` para que el agente pueda retomarla si primero
+        necesita verificar al cliente o completar información.
+
+        Args:
+            ticket_number: Número del ticket que se desea escalar.
+            escalation_reason: Motivo concreto por el cual el caso requiere
+                atención humana.
+        """
+
+        draft = self.conversation.warranty_claim_draft
+
+        draft.ticket_number = ticket_number
+        draft.escalation_reason = escalation_reason
+
+        self.set_pending_action(
+            action=PendingAction.ESCALATE_WARRANTY_CLAIM,
+            reference=ticket_number,
+        )
+
+    def clear_warranty_flow(self) -> None:
+        """
+        Limpia el borrador del flujo de garantía.
+
+        Este métod debe invocarse cuando la gestión de garantía termina, se
+        cancela o ya no debe continuar. Reinicia el borrador para evitar mezclar
+        datos de reclamos antiguos con solicitudes nuevas.
+
+        Si la acción pendiente actual pertenece al flujo de garantías, también
+        se limpia para impedir que el agente retome una operación que ya no está
+        vigente.
+
+        Acciones pendientes que se limpian:
+
+        - `CHECK_WARRANTY`
+        - `CREATE_WARRANTY_CLAIM`
+        - `ESCALATE_WARRANTY_CLAIM`
+        """
+
+        self.conversation.warranty_claim_draft = WarrantyClaimDraftDTO()
+
+        if self.conversation.pending_action in {
+            PendingAction.CHECK_WARRANTY,
+            PendingAction.CREATE_WARRANTY_CLAIM,
+            PendingAction.ESCALATE_WARRANTY_CLAIM,
+        }:
+            self.clear_pending_action()

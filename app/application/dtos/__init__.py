@@ -21,6 +21,7 @@ from app.application.dtos.chat import (
     CustomerRegistrationDraftDTO,
     MessageRole,
     PendingAction,
+    WarrantyClaimDraftDTO,
 )
 from app.application.dtos.customer import (
     CustomerLookupInputDTO,
@@ -46,6 +47,19 @@ from app.application.dtos.order import (
     OrderLookupResultDTO,
     OrderSummaryDTO,
     UpdateOrderAddressInputDTO,
+)
+from app.application.dtos.warranty import (
+    WarrantyClaimCreateInputDTO,
+    WarrantyClaimCreateReason,
+    WarrantyClaimCreateResultDTO,
+    WarrantyClaimDTO,
+    WarrantyClaimEscalateInputDTO,
+    WarrantyClaimEscalationReason,
+    WarrantyClaimEscalationResultDTO,
+    WarrantyLookupInputDTO,
+    WarrantyLookupReason,
+    WarrantyLookupResultDTO,
+    WarrantySummaryDTO,
 )
 
 __all__ = [
@@ -81,4 +95,16 @@ __all__ = [
     "ToolCallDTO",
     "ToolDefinitionDTO",
     "ToolResultDTO",
+    "WarrantyClaimCreateInputDTO",
+    "WarrantyClaimCreateReason",
+    "WarrantyClaimCreateResultDTO",
+    "WarrantyClaimDTO",
+    "WarrantyClaimEscalateInputDTO",
+    "WarrantyClaimEscalationReason",
+    "WarrantyClaimEscalationResultDTO",
+    "WarrantyLookupInputDTO",
+    "WarrantyClaimDraftDTO",
+    "WarrantyLookupReason",
+    "WarrantyLookupResultDTO",
+    "WarrantySummaryDTO",
 ]
