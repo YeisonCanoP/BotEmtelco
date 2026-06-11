@@ -8,6 +8,11 @@ from app.application.tools.customer_tools import (
     RegisterCustomerTool,
     customer_to_result_dto,
 )
+from app.application.tools.handoff_tools import (
+    RequestHumanSupportTool,
+    human_handoff_to_dto,
+)
+from app.application.tools.knowledge_tools import SearchKnowledgeBaseTool
 from app.application.tools.order_tools import (
     GetCustomerOrderTool,
     ListCustomerOrdersTool,
@@ -33,12 +38,15 @@ __all__ = [
     "ListCustomerOrdersTool",
     "RegisterCustomerTool",
     "RegisterWarrantyClaimTool",
+    "RequestHumanSupportTool",
     "SearchCatalogTool",
+    "SearchKnowledgeBaseTool",
     "Tool",
     "ToolRegistry",
     "UpdateOrderAddressTool",
     "claim_to_dto",
     "customer_to_result_dto",
+    "human_handoff_to_dto",
     "order_to_detail_dto",
     "order_to_summary_dto",
     "warranty_to_summary_dto",

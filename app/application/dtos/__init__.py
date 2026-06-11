@@ -30,6 +30,11 @@ from app.application.dtos.customer import (
     CustomerRegistrationResultDTO,
     CustomerResultDTO,
 )
+from app.application.dtos.handoff import (
+    HumanHandoffDTO,
+    HumanHandoffInputDTO,
+    HumanHandoffResultDTO,
+)
 from app.application.dtos.knowledge import (
     KnowledgeChunkResultDTO,
     KnowledgeSearchInputDTO,
@@ -91,6 +96,9 @@ __all__ = [
     "CustomerRegistrationInputDTO",
     "CustomerRegistrationResultDTO",
     "CustomerResultDTO",
+    "HumanHandoffDTO",
+    "HumanHandoffInputDTO",
+    "HumanHandoffResultDTO",
     "LLMRequestDTO",
     "LLMResponseDTO",
     "MessageRole",

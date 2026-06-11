@@ -45,6 +45,12 @@ class ToolError(ApplicationError):
     """
 
 
+class KnowledgeServiceError(ToolError):
+    """
+    Error controlado al generar embeddings o recuperar conocimiento.
+    """
+
+
 class ToolRegistrationError(ToolError):
     """
     Error producido al registrar una herramienta.

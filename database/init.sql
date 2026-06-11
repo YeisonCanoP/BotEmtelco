@@ -168,6 +168,42 @@ CREATE TABLE IF NOT EXISTS warranty_claims
             )
 );
 
+CREATE TABLE IF NOT EXISTS human_handoffs
+(
+    id          VARCHAR(40) PRIMARY KEY,
+    session_id  UUID        NOT NULL,
+    customer_id VARCHAR(11),
+    reason      VARCHAR(40) NOT NULL,
+    summary     TEXT        NOT NULL,
+    status      VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_human_handoffs_customer
+        FOREIGN KEY (customer_id)
+            REFERENCES customers (identification),
+
+    CONSTRAINT human_handoff_reason_valid
+        CHECK (
+            reason IN (
+                       'USER_REQUEST',
+                       'INTENT_NOT_UNDERSTOOD'
+                )
+            ),
+
+    CONSTRAINT human_handoff_status_valid
+        CHECK (
+            status IN (
+                       'PENDING',
+                       'ASSIGNED',
+                       'CLOSED'
+                )
+            ),
+
+    CONSTRAINT human_handoff_summary_valid
+        CHECK (length(trim(summary)) >= 10)
+);
+
 CREATE TABLE IF NOT EXISTS kb_chunks
 (
     id         BIGSERIAL PRIMARY KEY,
@@ -195,6 +231,12 @@ CREATE OR REPLACE TRIGGER trg_warranty_claims_updated_at
     FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
+CREATE OR REPLACE TRIGGER trg_human_handoffs_updated_at
+    BEFORE UPDATE
+    ON human_handoffs
+    FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
 -- =========================================================
 -- ÍNDICES
 -- =========================================================
@@ -209,6 +251,12 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
 CREATE INDEX IF NOT EXISTS idx_warranties_order ON warranties (order_id);
 CREATE INDEX IF NOT EXISTS idx_warranties_product ON warranties (product_sku);
 CREATE INDEX IF NOT EXISTS idx_claims_customer ON warranty_claims (customer_id);
+CREATE INDEX IF NOT EXISTS idx_human_handoffs_customer ON human_handoffs (customer_id);
+CREATE INDEX IF NOT EXISTS idx_human_handoffs_status ON human_handoffs (status);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_human_handoffs_active_session
+    ON human_handoffs (session_id)
+    WHERE status IN ('PENDING', 'ASSIGNED');
 
 -- El índice vectorial se crea después de insertar los embeddings:
 -- CREATE INDEX idx_kb_chunks_embedding

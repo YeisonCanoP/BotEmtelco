@@ -16,6 +16,7 @@ Separación de responsabilidades:
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
+from uuid import UUID
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
@@ -24,11 +25,14 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Numeric,
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -533,6 +537,72 @@ class WarrantyClaimModel(Base):
     escalation_reason: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class HumanHandoffModel(Base):
+    """
+    Representación ORM de una solicitud general de atención humana.
+
+    La solicitud pertenece a una sesión conversacional y puede asociarse a un
+    cliente verificado. El índice parcial único evita que una misma sesión tenga
+    más de una solicitud activa.
+    """
+
+    __tablename__ = "human_handoffs"
+
+    __table_args__ = (
+        Index(
+            "uq_human_handoffs_active_session",
+            "session_id",
+            unique=True,
+            postgresql_where=text("status IN ('PENDING', 'ASSIGNED')"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(40),
+        primary_key=True,
+    )
+
+    session_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        nullable=False,
+    )
+
+    customer_id: Mapped[str | None] = mapped_column(
+        String(11),
+        ForeignKey("customers.identification"),
+        nullable=True,
+    )
+
+    reason: Mapped[str] = mapped_column(
+        String(40),
+        nullable=False,
+    )
+
+    summary: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="PENDING",
     )
 
     created_at: Mapped[datetime] = mapped_column(

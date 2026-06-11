@@ -3,6 +3,11 @@ from app.domain.entities.customer import (
     CustomerKind,
     is_customer_kind,
 )
+from app.domain.entities.human_handoff import (
+    HumanHandoff,
+    HumanHandoffReason,
+    HumanHandoffStatus,
+)
 from app.domain.entities.order import Order, OrderStatus
 from app.domain.entities.product import Product
 from app.domain.entities.warranty import Warranty
@@ -14,6 +19,9 @@ from app.domain.entities.warranty_claim import (
 __all__ = [
     "Customer",
     "CustomerKind",
+    "HumanHandoff",
+    "HumanHandoffReason",
+    "HumanHandoffStatus",
     "Order",
     "OrderStatus",
     "Product",

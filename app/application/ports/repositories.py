@@ -17,9 +17,12 @@ Las implementaciones pueden usar distintas fuentes de datos, por ejemplo:
 
 from decimal import Decimal
 from typing import Protocol
+from uuid import UUID
 
 from app.domain.entities import (
     Customer,
+    HumanHandoff,
+    HumanHandoffReason,
     Order,
     Product,
     Warranty,
@@ -165,6 +168,45 @@ class CustomerRepository(Protocol):
         Returns:
             Cliente persistido, o `None` si no fue posible crearlo por una regla
             controlada de negocio.
+        """
+
+        ...
+
+
+class HumanHandoffRepository(Protocol):
+    """
+    Contrato para persistir solicitudes generales de atención humana.
+
+    El repositorio trabaja por sesión y permite asociar opcionalmente un cliente
+    verificado. No depende de tickets de garantía ni exige identificación.
+    """
+
+    async def get_active_by_session(
+        self,
+        session_id: UUID,
+    ) -> HumanHandoff | None:
+        """
+        Consulta la solicitud activa de una sesión.
+
+        Returns:
+            Solicitud en estado `PENDING` o `ASSIGNED`, o `None`.
+        """
+
+        ...
+
+    async def create(
+        self,
+        handoff_id: str,
+        session_id: UUID,
+        customer_identification: str | None,
+        reason: HumanHandoffReason,
+        summary: str,
+    ) -> tuple[HumanHandoff, bool]:
+        """
+        Crea una solicitud o retorna la activa si existe una condición de carrera.
+
+        Returns:
+            Tupla con la solicitud y un booleano que indica si fue creada.
         """
 
         ...

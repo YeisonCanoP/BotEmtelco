@@ -99,6 +99,13 @@ class Settings(BaseSettings):
         description="Modelo usado para generar embeddings.",
     )
 
+    embedding_dimensions: int = Field(
+        default=1_536,
+        ge=1,
+        le=3_072,
+        description="Dimensiones de los embeddings almacenados en pgvector.",
+    )
+
     redis_url: str = Field(
         default="redis://localhost:6379/0",
         description="URL de conexión a Redis.",
