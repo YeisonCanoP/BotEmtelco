@@ -109,3 +109,26 @@ class ToolArgumentsError(ToolError):
         self.details = details
 
         super().__init__(f"Los argumentos de la herramienta '{tool_name}' no son válidos")
+
+
+class RepositoryError(ApplicationError):
+    """
+    Error controlado producido al consultar o modificar datos persistentes.
+    """
+
+
+class CustomerConflictError(RepositoryError):
+    """
+    Indica que no puede registrarse un cliente por un dato único duplicado.
+    """
+
+    def __init__(self, field: str) -> None:
+        """
+        Inicializa el conflicto.
+
+        Args:
+            field: Campo duplicado. Debe ser `identification` o `email`.
+        """
+        self.field = field
+
+        super().__init__(f"Ya existe un cliente con el campo '{field}'")

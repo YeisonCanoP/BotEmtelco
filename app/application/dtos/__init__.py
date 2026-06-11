@@ -16,6 +16,13 @@ from app.application.dtos.chat import (
     ConversationDTO,
     MessageRole,
 )
+from app.application.dtos.customer import (
+    CustomerLookupInputDTO,
+    CustomerLookupResultDTO,
+    CustomerRegistrationInputDTO,
+    CustomerRegistrationResultDTO,
+    CustomerResultDTO,
+)
 from app.application.dtos.llm import (
     LLMRequestDTO,
     LLMResponseDTO,
@@ -35,6 +42,11 @@ __all__ = [
     "LLMRequestDTO",
     "LLMResponseDTO",
     "MessageRole",
+    "CustomerLookupInputDTO",
+    "CustomerLookupResultDTO",
+    "CustomerRegistrationInputDTO",
+    "CustomerRegistrationResultDTO",
+    "CustomerResultDTO",
     "ProductComparisonResultDTO",
     "ProductResultDTO",
     "ToolCallDTO",
