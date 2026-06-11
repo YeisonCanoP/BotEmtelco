@@ -5,6 +5,9 @@ Este módulo define una interfaz web simple para interactuar con el agente de
 retail electrónico. La aplicación mantiene una sesión conversacional en
 `st.session_state`, envía los mensajes del usuario a la API FastAPI y muestra
 las respuestas generadas por el asistente.
+
+El session_id se persiste en la URL (?session=...) para que no cambie al
+recargar la página.
 """
 
 import logging
@@ -24,7 +27,6 @@ WELCOME_MESSAGE = (
     "consultar el estado de tus pedidos y gestionar garantías. ¿En qué te ayudo?"
 )
 
-
 # ---------------------------------------------------------------------------
 # Configuración de página
 # ---------------------------------------------------------------------------
@@ -35,46 +37,62 @@ st.set_page_config(
     layout="centered",
 )
 
+# ---------------------------------------------------------------------------
+# Persistencia del session_id en la URL
+# ---------------------------------------------------------------------------
+
+
+def get_or_create_session_id() -> str:
+    """
+    Lee el session_id desde los query params de la URL.
+    Si no existe, crea uno nuevo y lo escribe en la URL.
+    Así persiste entre recargas sin depender de st.session_state.
+    """
+    params = st.query_params
+    if "session" in params:
+        return params["session"]
+    new_id = str(uuid4())
+    st.query_params["session"] = new_id
+    return new_id
+
+
+def set_session_id(session_id: str) -> None:
+    """Actualiza el session_id en la URL y reinicia el historial."""
+    st.query_params["session"] = session_id
+    st.session_state.messages = []
+
+
+def reset_session() -> None:
+    """Genera un nuevo session_id aleatorio."""
+    set_session_id(str(uuid4()))
+
 
 # ---------------------------------------------------------------------------
 # Estado de la sesión
 # ---------------------------------------------------------------------------
 
+current_session_id = get_or_create_session_id()
 
-def reset_conversation() -> None:
-    """Reinicia la conversación con un nuevo identificador de sesión."""
-    st.session_state.session_id = str(uuid4())
+# Si el session_id de la URL cambió respecto al anterior, limpiar historial.
+if st.session_state.get("last_session_id") != current_session_id:
     st.session_state.messages = []
-
-
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid4())
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
+    st.session_state.last_session_id = current_session_id
 
 # ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------
 
 
-def send_message(prompt: str) -> str:
-    """Envía el mensaje del usuario a la API y devuelve la respuesta del asistente."""
+def send_message(prompt: str, session_id: str) -> str:
+    """Envía el mensaje del usuario a la API y devuelve la respuesta."""
     try:
         response = httpx.post(
             f"{API_BASE_URL}/chat",
-            json={
-                "message": prompt,
-                "session_id": st.session_state.session_id,
-            },
+            json={"message": prompt, "session_id": session_id},
             timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         payload = response.json()
-
-        # Mantener el session_id que devuelve el backend, si existe.
-        st.session_state.session_id = payload.get("session_id", st.session_state.session_id)
         return payload.get("reply", "El asistente no devolvió una respuesta.")
 
     except httpx.HTTPStatusError as exc:
@@ -86,7 +104,7 @@ def send_message(prompt: str) -> str:
 
     except httpx.RequestError:
         logger.exception("No se pudo conectar con la API url=%s", API_BASE_URL)
-        return "No fue posible conectarse con la API. Inténtalo de nuevo en un momento."
+        return "No fue posible conectarse con la API. Inténtalo de nuevo."
 
 
 # ---------------------------------------------------------------------------
@@ -94,16 +112,35 @@ def send_message(prompt: str) -> str:
 # ---------------------------------------------------------------------------
 
 with st.sidebar:
-    st.subheader("Asistente Retail")
+    st.subheader("🛍️ Asistente Retail")
     st.caption("Tienda de electrónica · soporte y compras")
     st.divider()
 
-    if st.button("Nueva conversación", use_container_width=True):
-        reset_conversation()
-        st.rerun()
+    # Sesión activa (solo lectura, para referencia)
+    st.markdown("**Sesión activa**")
+    st.code(current_session_id, language=None)
 
-    st.caption(f"Sesión actual: `{st.session_state.session_id[:8]}`")
+    # Ingresar sesión manualmente
+    st.markdown("**Cambiar sesión**")
+    manual_id = st.text_input(
+        "Session ID",
+        placeholder="Pega un ID existente o deja vacío",
+        label_visibility="collapsed",
+    )
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Usar", use_container_width=True, disabled=not manual_id):
+            set_session_id(manual_id.strip())
+            st.rerun()
+    with col2:
+        if st.button("Nueva", use_container_width=True):
+            reset_session()
+            st.rerun()
 
+    st.divider()
+    st.caption(
+        "El ID de sesión se guarda en la URL. Cópialo para retomar esta conversación más tarde."
+    )
 
 # ---------------------------------------------------------------------------
 # Encabezado
@@ -111,7 +148,6 @@ with st.sidebar:
 
 st.title("🛍️ Asistente de la tienda")
 st.caption("Pregúntame por productos, pedidos o garantías.")
-
 
 # ---------------------------------------------------------------------------
 # Historial de mensajes
@@ -125,7 +161,6 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-
 # ---------------------------------------------------------------------------
 # Entrada del usuario
 # ---------------------------------------------------------------------------
@@ -133,13 +168,15 @@ for message in st.session_state.messages:
 prompt = st.chat_input("Escribe tu mensaje")
 
 if prompt:
+    session_id = st.query_params.get("session", current_session_id)
+
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
         with st.spinner("Pensando…"):
-            reply = send_message(prompt)
+            reply = send_message(prompt, session_id)
         st.markdown(reply)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})

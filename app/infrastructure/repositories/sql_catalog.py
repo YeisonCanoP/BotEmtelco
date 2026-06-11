@@ -67,8 +67,8 @@ class SqlCatalogRepository(CatalogRepository):
                 )
             )
 
-        if category:
-            statement = statement.where(ProductModel.category == category.upper())
+        if category and (normalized_category := category.strip()):
+            statement = statement.where(ProductModel.category == normalized_category.upper())
 
         if max_price is not None:
             statement = statement.where(ProductModel.price <= max_price)
@@ -80,14 +80,57 @@ class SqlCatalogRepository(CatalogRepository):
 
         models = self._db.scalars(statement).all()
 
+        return [self._to_entity(model) for model in models]
+
+    async def get_by_skus(
+        self,
+        skus: list[str],
+    ) -> list[Product]:
+        """
+        Consulta productos específicos por sus códigos SKU.
+
+        Los SKU son normalizados a mayúsculas. Los valores vacíos y duplicados
+        son descartados. Los productos encontrados se retornan respetando el
+        orden solicitado.
+
+        Args:
+            skus: Códigos SKU que se desean consultar.
+
+        Returns:
+            list[Product]: Productos encontrados en el orden solicitado.
+        """
+        normalized_skus = list(dict.fromkeys(sku.strip().upper() for sku in skus if sku.strip()))
+
+        if not normalized_skus:
+            return []
+
+        statement = select(ProductModel).where(ProductModel.sku.in_(normalized_skus))
+
+        models = self._db.scalars(statement).all()
+
+        models_by_sku = {model.sku: model for model in models}
+
         return [
-            Product(
-                sku=model.sku,
-                name=model.name,
-                category=model.category,
-                price=model.price,
-                stock=model.stock,
-                specs=model.specs,
-            )
-            for model in models
+            self._to_entity(models_by_sku[sku]) for sku in normalized_skus if sku in models_by_sku
         ]
+
+    @staticmethod
+    def _to_entity(model: ProductModel) -> Product:
+        """
+        Convierte un modelo ORM en una entidad de dominio.
+
+        Args:
+            model: Producto recuperado mediante SQLAlchemy.
+
+        Returns:
+            Product: Entidad de producto independiente de la base de datos.
+        """
+        return Product(
+            sku=model.sku,
+            name=model.name,
+            category=model.category,
+            description=model.description,
+            price=model.price,
+            stock=model.stock,
+            specs=dict(model.specs),
+        )

@@ -43,3 +43,22 @@ class CatalogRepository(Protocol):
             list[Product]: Lista de productos que cumplen los criterios de búsqueda.
         """
         ...
+
+    async def get_by_skus(
+        self,
+        skus: list[str],
+    ) -> list[Product]:
+        """
+        Consulta productos específicos por sus códigos SKU.
+
+        Los productos deben conservar el orden de los SKU solicitados.
+        Los códigos duplicados, vacíos o inexistentes no deben generar
+        elementos repetidos ni valores vacíos.
+
+        Args:
+            skus: Códigos SKU que se desean consultar.
+
+        Returns:
+            list[Product]: Productos encontrados en el orden solicitado.
+        """
+        ...
