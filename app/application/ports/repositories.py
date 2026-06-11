@@ -10,7 +10,7 @@ a una tecnología específica.
 from decimal import Decimal
 from typing import Protocol
 
-from app.domain.entities import Product
+from app.domain.entities import Customer, Order, Product
 
 
 class CatalogRepository(Protocol):
@@ -61,4 +61,40 @@ class CatalogRepository(Protocol):
         Returns:
             list[Product]: Productos encontrados en el orden solicitado.
         """
+        ...
+
+
+class CustomerRepository(Protocol):
+    """Contrato para consultar y registrar clientes."""
+
+    async def get_by_identification(
+        self,
+        identification: str,
+    ) -> Customer | None:
+        """Consulta un cliente por su número de identificación."""
+        ...
+
+    async def get_by_email(
+        self,
+        email: str,
+    ) -> Customer | None:
+        """Consulta un cliente por su correo electrónico."""
+        ...
+
+    async def create(
+        self,
+        customer: Customer,
+    ) -> Customer | None:
+        """Registra un cliente y retorna la entidad persistida."""
+        ...
+
+
+class OrderRepository(Protocol):
+    """Contrato para consultar pedidos asociados a un cliente."""
+
+    async def list_by_customer(
+        self,
+        customer_id: str,
+    ) -> list[Order]:
+        """Retorna los pedidos de un cliente."""
         ...

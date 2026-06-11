@@ -17,5 +17,10 @@ class FullName:
     value: str
 
     def __post_init__(self) -> None:
-        if not 1 <= len(self.value.strip()) <= 100:
+        normalized = self.value.strip()
+
+        if not 1 <= len(normalized) <= 100:
             raise DomainError("Full name must contain 1 to 100 characters")
+
+        if not all(character.isalpha() or character.isspace() for character in normalized):
+            raise DomainError("Full name may only contain letters and spaces")

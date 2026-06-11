@@ -85,6 +85,15 @@ class Settings(BaseSettings):
         description="Número máximo de reintentos permitidos ante errores del proveedor LLM.",
     )
 
+    agent_max_tool_rounds: int = Field(
+        default=5,
+        ge=1,
+        le=10,
+        description=(
+            "Cantidad máxima de rondas de herramientas permitidas durante una interacción."
+        ),
+    )
+
     embedding_model: str = Field(
         default="text-embedding-3-small",
         description="Modelo usado para generar embeddings.",

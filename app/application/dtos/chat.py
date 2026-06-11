@@ -70,6 +70,15 @@ class ConversationDTO(BaseModel):
 
     session_id: UUID
     messages: list[ChatMessageDTO] = Field(default_factory=list)
+    verified_customer_id: str | None = Field(
+        default=None,
+        pattern=r"^[0-9]{4,11}$",
+    )
+    verified_customer_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
 
 
 class AgentRequestDTO(BaseModel):
