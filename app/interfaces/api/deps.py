@@ -4,8 +4,9 @@ Raíz de composición de dependencias de la API.
 Este módulo centraliza la creación de dependencias usadas por FastAPI para
 procesar las conversaciones del agente.
 
-Su responsabilidad es construir y conectar las piezas concretas de la
-aplicación sin mezclar esa lógica dentro de endpoints, servicios o herramientas.
+Su responsabilidad es construir y conectar las implementaciones concretas de la
+aplicación sin mezclar esa lógica dentro de endpoints, servicios, herramientas
+o casos de uso.
 
 Desde este archivo se ensamblan:
 
@@ -16,7 +17,6 @@ Desde este archivo se ensamblan:
 - Proveedor LLM.
 - Almacenamiento de sesiones.
 - Servicio principal del agente conversacional.
-
 """
 
 from functools import lru_cache
@@ -29,6 +29,7 @@ from app.application.ports.llm_provider import LLMProvider
 from app.application.ports.repositories import (
     CatalogRepository,
     CustomerRepository,
+    OrderRepository,
 )
 from app.application.ports.session_store import SessionStore
 from app.application.services.agent_service import AgentService
@@ -39,9 +40,12 @@ from app.application.services.customer_service import CustomerService
 from app.application.tools import (
     CompareProductsTool,
     FindCustomerTool,
+    GetCustomerOrderTool,
+    ListCustomerOrdersTool,
     RegisterCustomerTool,
     SearchCatalogTool,
     ToolRegistry,
+    UpdateOrderAddressTool,
 )
 from app.infrastructure.cache.redis_client import get_redis_client
 from app.infrastructure.config import get_settings
@@ -53,6 +57,7 @@ from app.infrastructure.repositories.sql_catalog import (
 from app.infrastructure.repositories.sql_customers import (
     SqlCustomerRepository,
 )
+from app.infrastructure.repositories.sql_orders import SqlOrderRepository
 from app.infrastructure.session.redis_session_store import (
     RedisSessionStore,
 )
@@ -97,7 +102,7 @@ def get_customer_repository(
 
     El repositorio concreto consulta y registra clientes usando PostgreSQL, pero
     se entrega como `CustomerRepository` para que los servicios de aplicación no
-    dependan de SQLAlchemy.
+    dependan directamente de SQLAlchemy.
 
     Args:
         db: Sesión SQLAlchemy activa de la petición.
@@ -115,14 +120,42 @@ CustomerRepositoryDependency = Annotated[
 ]
 
 
+def get_order_repository(
+    db: DbSession,
+) -> OrderRepository:
+    """
+    Construye el repositorio de pedidos para la petición actual.
+
+    El repositorio concreto permite listar pedidos, consultar pedidos por
+    cliente y actualizar direcciones de entrega usando PostgreSQL.
+
+    Todas las operaciones quedan asociadas a la misma sesión SQLAlchemy de la
+    petición actual.
+
+    Args:
+        db: Sesión SQLAlchemy activa de la petición.
+
+    Returns:
+        Implementación concreta del repositorio de pedidos.
+    """
+
+    return SqlOrderRepository(db)
+
+
+OrderRepositoryDependency = Annotated[
+    OrderRepository,
+    Depends(get_order_repository),
+]
+
+
 def get_customer_service(
     repository: CustomerRepositoryDependency,
 ) -> CustomerService:
     """
     Construye el servicio de clientes para la petición actual.
 
-    Este servicio coordina los casos de uso de consulta y registro de clientes.
-    Recibe un repositorio mediante el puerto `CustomerRepository`.
+    Este servicio coordina los casos de uso relacionados con identificación,
+    validación y registro de clientes.
 
     Args:
         repository: Repositorio usado para consultar y registrar clientes.
@@ -171,27 +204,30 @@ ConversationContextDependency = Annotated[
 def get_tool_registry(
     catalog_repository: CatalogDependency,
     customer_service: CustomerServiceDependency,
+    order_repository: OrderRepositoryDependency,
     conversation_context: ConversationContextDependency,
 ) -> ToolRegistry:
     """
     Construye el registro de herramientas disponibles para la petición actual.
 
     Las herramientas se crean por petición porque algunas dependen del contexto
-    mutable de conversación. Esto permite que herramientas de clientes actualicen
-    el estado estructurado de la sesión, por ejemplo cliente verificado,
-    borrador de registro o acción pendiente.
+    mutable de conversación. Esto permite que herramientas de clientes y pedidos
+    actualicen el estado estructurado de la sesión.
 
     Herramientas registradas:
 
     - `SearchCatalogTool`: busca productos en el catálogo.
     - `CompareProductsTool`: compara productos por SKU.
     - `FindCustomerTool`: valida si una identificación pertenece a un cliente.
-    - `RegisterCustomerTool`: registra clientes nuevos después de validar el
-      flujo correspondiente.
+    - `RegisterCustomerTool`: registra clientes nuevos.
+    - `ListCustomerOrdersTool`: lista pedidos del cliente verificado.
+    - `GetCustomerOrderTool`: consulta un pedido del cliente verificado.
+    - `UpdateOrderAddressTool`: actualiza la dirección de entrega de un pedido.
 
     Args:
         catalog_repository: Repositorio usado por herramientas de catálogo.
         customer_service: Servicio usado por herramientas de clientes.
+        order_repository: Repositorio usado por herramientas de pedidos.
         conversation_context: Contexto compartido entre herramientas y agente.
 
     Returns:
@@ -208,6 +244,18 @@ def get_tool_registry(
             ),
             RegisterCustomerTool(
                 customer_service=customer_service,
+                conversation_context=conversation_context,
+            ),
+            ListCustomerOrdersTool(
+                repository=order_repository,
+                conversation_context=conversation_context,
+            ),
+            GetCustomerOrderTool(
+                repository=order_repository,
+                conversation_context=conversation_context,
+            ),
+            UpdateOrderAddressTool(
+                repository=order_repository,
                 conversation_context=conversation_context,
             ),
         ]

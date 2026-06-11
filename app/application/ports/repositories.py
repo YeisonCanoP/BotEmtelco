@@ -168,12 +168,9 @@ class OrderRepository(Protocol):
     """
     Contrato para consultar y actualizar pedidos.
 
-    Este repositorio agrupa las operaciones necesarias para los flujos de
-    postventa relacionados con seguimiento de pedidos, fecha estimada de entrega
-    y actualización de dirección.
-
-    El agente debe usar este contrato después de contar con la información
-    mínima requerida, como identificación del cliente o número de pedido.
+    Todas las operaciones trabajan con la identificación del cliente validado.
+    El repositorio nunca debe retornar un pedido individual sin comprobar
+    simultáneamente que pertenece a ese cliente.
     """
 
     async def list_by_customer(
@@ -181,38 +178,15 @@ class OrderRepository(Protocol):
         customer_identification: str,
     ) -> list[Order]:
         """
-        Lista los pedidos asociados a un cliente.
-
-        Este métod se utiliza cuando el usuario quiere consultar sus compras,
-        pero todavía no entregó un número de pedido específico.
+        Lista los pedidos pertenecientes al cliente.
 
         Args:
-            customer_identification: Identificación del cliente validado.
+            customer_identification: Identificación obtenida desde
+                `ConversationContext`, nunca desde argumentos del LLM.
 
         Returns:
-            Lista de pedidos asociados al cliente.
+            Pedidos del cliente, ordenados del más reciente al más antiguo.
         """
-
-        ...
-
-    async def get_by_number(
-        self,
-        order_number: str,
-    ) -> Order | None:
-        """
-        Consulta un pedido por su número único.
-
-        Este métod se usa cuando el usuario entrega directamente el número de
-        pedido o cuando el agente necesita recuperar el detalle de un pedido
-        previamente identificado.
-
-        Args:
-            order_number: Número único del pedido.
-
-        Returns:
-            Pedido encontrado, o `None` si no existe.
-        """
-
         ...
 
     async def get_by_number_and_customer(
@@ -221,20 +195,16 @@ class OrderRepository(Protocol):
         customer_identification: str,
     ) -> Order | None:
         """
-        Consulta un pedido validando que pertenezca al cliente indicado.
-
-        Este métod evita exponer información de pedidos a usuarios que no
-        corresponden al titular de la compra.
+        Consulta un pedido comprobando su propietario.
 
         Args:
-            order_number: Número único del pedido.
-            customer_identification: Identificación del cliente validado.
+            order_number: Número normalizado del pedido.
+            customer_identification: Cliente validado en la sesión.
 
         Returns:
-            Pedido encontrado para ese cliente, o `None` si no existe o no le
-            pertenece.
+            Pedido encontrado o `None` cuando no existe o no pertenece al
+            cliente indicado.
         """
-
         ...
 
     async def update_delivery_address(
@@ -244,20 +214,21 @@ class OrderRepository(Protocol):
         new_address: str,
     ) -> Order | None:
         """
-        Actualiza la dirección de entrega de un pedido.
+        Actualiza la dirección de un pedido modificable.
 
-        Este métod se utiliza cuando el cliente solicita modificar la dirección
-        asociada a un pedido activo. La implementación debe validar si el pedido
-        todavía permite cambios antes de aplicar la actualización.
+        La implementación debe comprobar en una misma operación:
+
+        - Que el pedido existe.
+        - Que pertenece al cliente.
+        - Que está en estado `CONFIRMED` o `PREPARING`.
 
         Args:
-            order_number: Número único del pedido.
-            customer_identification: Identificación del cliente validado.
-            new_address: Nueva dirección de entrega.
+            order_number: Número normalizado del pedido.
+            customer_identification: Cliente validado en la sesión.
+            new_address: Nueva dirección normalizada.
 
         Returns:
-            Pedido actualizado, o `None` si el pedido no existe, no pertenece al
-            cliente o ya no permite cambios.
+            Pedido actualizado o `None` si no existe, no pertenece al cliente
+            o su estado no permite cambios.
         """
-
         ...

@@ -39,7 +39,7 @@ from app.application.exceptions import (
 )
 from app.application.ports.llm_provider import LLMProvider
 from app.application.ports.session_store import SessionStore
-from app.application.prompts.system_prompt import SYSTEM_PROMPT
+from app.application.prompts.system_prompt import build_system_prompt
 from app.application.services.conversation_context import (
     ConversationContext,
 )
@@ -154,7 +154,7 @@ class AgentService:
 
         llm_response = await self._llm_provider.complete(
             LLMRequestDTO(
-                instructions=SYSTEM_PROMPT,
+                instructions=build_system_prompt(conversation),
                 messages=conversation.messages,
                 tools=tool_definitions,
             )
@@ -182,7 +182,7 @@ class AgentService:
 
             llm_response = await self._llm_provider.complete(
                 LLMRequestDTO(
-                    instructions=SYSTEM_PROMPT,
+                    instructions=build_system_prompt(conversation),
                     messages=conversation.messages,
                     tools=tool_definitions,
                     tool_results=tool_results,

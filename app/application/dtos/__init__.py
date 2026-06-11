@@ -36,6 +36,17 @@ from app.application.dtos.llm import (
     ToolDefinitionDTO,
     ToolResultDTO,
 )
+from app.application.dtos.order import (
+    CustomerOrdersInputDTO,
+    CustomerOrdersResultDTO,
+    OrderAddressFailureReason,
+    OrderAddressUpdateResultDTO,
+    OrderDetailDTO,
+    OrderLookupInputDTO,
+    OrderLookupResultDTO,
+    OrderSummaryDTO,
+    UpdateOrderAddressInputDTO,
+)
 
 __all__ = [
     "AgentRequestDTO",
@@ -48,6 +59,15 @@ __all__ = [
     "CustomerFlowStatus",
     "CustomerLookupInputDTO",
     "CustomerLookupResultDTO",
+    "CustomerOrdersInputDTO",
+    "CustomerOrdersResultDTO",
+    "OrderAddressFailureReason",
+    "OrderAddressUpdateResultDTO",
+    "OrderDetailDTO",
+    "OrderLookupInputDTO",
+    "OrderLookupResultDTO",
+    "OrderSummaryDTO",
+    "UpdateOrderAddressInputDTO",
     "CustomerRegistrationDraftDTO",
     "CustomerRegistrationInputDTO",
     "CustomerRegistrationResultDTO",
