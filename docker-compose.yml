@@ -23,18 +23,28 @@ services:
       dockerfile: Dockerfile
     container_name: retail_ai_app
     environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/retail_ai
+
       REDIS_URL: redis://redis:6379/0
       REDIS_SESSION_TTL_SECONDS: 86400
       REDIS_SESSION_PREFIX: retail-ai:session
-      APP_ENV: development
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/retail_ai
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
       OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-low}
       OPENAI_VERBOSITY: ${OPENAI_VERBOSITY:-low}
       OPENAI_MAX_OUTPUT_TOKENS: ${OPENAI_MAX_OUTPUT_TOKENS:-800}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-}
+      OPENAI_TOP_P: ${OPENAI_TOP_P:-}
       OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-60}
       OPENAI_MAX_RETRIES: ${OPENAI_MAX_RETRIES:-2}
+
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_DIRECTORY: /app/logs
+      LOG_FILENAME: app.log
+      LOG_MAX_BYTES: 5000000
+      LOG_BACKUP_COUNT: 5
     ports:
       - "8000:8000"
     depends_on:
@@ -43,7 +53,16 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      test:
+        [
+          "CMD",
+          "uv",
+          "run",
+          "--no-sync",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+        ]
       interval: 5s
       timeout: 5s
       retries: 10

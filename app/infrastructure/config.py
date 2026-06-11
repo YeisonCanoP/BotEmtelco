@@ -143,8 +143,9 @@ class Settings(BaseSettings):
         "openai_top_p",
         mode="before",
     )
+    @classmethod
     def empty_sampling_value_to_none(
-        self,
+        cls,
         value: object,
     ) -> object:
         """
