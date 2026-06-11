@@ -52,3 +52,8 @@ class LLMResponseDTO(BaseModel):
     """Respuesta normalizada de un proveedor de IA."""
 
     content: str
+    response_id: str | None = None
+    model: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    reasoning_tokens: int = 0

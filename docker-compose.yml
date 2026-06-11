@@ -29,8 +29,12 @@ services:
       APP_ENV: development
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/retail_ai
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-low}
+      OPENAI_VERBOSITY: ${OPENAI_VERBOSITY:-low}
+      OPENAI_MAX_OUTPUT_TOKENS: ${OPENAI_MAX_OUTPUT_TOKENS:-800}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-60}
+      OPENAI_MAX_RETRIES: ${OPENAI_MAX_RETRIES:-2}
     ports:
       - "8000:8000"
     depends_on:
