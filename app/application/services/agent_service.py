@@ -16,6 +16,7 @@ from app.application.dtos import (
     LLMRequestDTO,
     MessageRole,
 )
+from app.application.exceptions import LLMServiceError
 from app.application.ports.llm_provider import LLMProvider
 from app.application.ports.session_store import SessionStore
 from app.application.prompts.system_prompt import SYSTEM_PROMPT
@@ -93,10 +94,17 @@ class AgentService:
             )
         )
 
+        if llm_response.content is None:
+            raise LLMServiceError(
+                "El modelo solicitó herramientas, pero el servicio aún no puede ejecutarlas"
+            )
+
+        reply = llm_response.content
+
         conversation.messages.append(
             ChatMessageDTO(
                 role=MessageRole.ASSISTANT,
-                content=llm_response.content,
+                content=reply,
             )
         )
 
@@ -110,5 +118,5 @@ class AgentService:
 
         return AgentResponseDTO(
             session_id=request.session_id,
-            reply=llm_response.content,
+            reply=reply,
         )

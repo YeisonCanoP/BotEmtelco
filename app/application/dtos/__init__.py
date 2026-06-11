@@ -1,3 +1,7 @@
+"""
+DTOs compartidos por la capa de aplicación.
+"""
+
 from app.application.dtos.catalog import (
     CatalogSearchInputDTO,
     CatalogSearchResultDTO,
@@ -10,9 +14,14 @@ from app.application.dtos.chat import (
     AgentResponseDTO,
     ChatMessageDTO,
     ConversationDTO,
+    MessageRole,
+)
+from app.application.dtos.llm import (
     LLMRequestDTO,
     LLMResponseDTO,
-    MessageRole,
+    ToolCallDTO,
+    ToolDefinitionDTO,
+    ToolResultDTO,
 )
 
 __all__ = [
@@ -28,4 +37,7 @@ __all__ = [
     "MessageRole",
     "ProductComparisonResultDTO",
     "ProductResultDTO",
+    "ToolCallDTO",
+    "ToolDefinitionDTO",
+    "ToolResultDTO",
 ]
