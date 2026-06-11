@@ -1,50 +1,265 @@
-# Agente IA para atención de una tienda retail
+# Prueba técnica: agente IA para atención retail
 
-Aplicación conversacional para una tienda de productos electrónicos. El agente atiende consultas
-de catálogo, compara productos, valida clientes, consulta pedidos, gestiona garantías y puede
-transferir una conversación a atención humana.
+Solución desarrollada para automatizar la atención de una tienda de productos electrónicos. El
+agente puede acompañar al cliente desde una consulta comercial hasta procesos de postventa, usando
+información real del sistema y herramientas controladas en lugar de inventar respuestas.
 
-El proyecto usa FastAPI como API, Streamlit como interfaz web, PostgreSQL para la información
-transaccional, pgvector para búsqueda semántica, Redis para conservar las sesiones y OpenAI para
-la generación de respuestas y embeddings.
+La entrega incluye una API en FastAPI, una interfaz conversacional en Streamlit, persistencia en
+PostgreSQL, memoria de sesión en Redis y búsqueda semántica con pgvector.
 
-## Funcionalidades
+## Objetivo de la solución
 
-- Búsqueda de productos por categoría, uso, presupuesto y especificaciones.
-- Comparación de productos por SKU.
-- Validación y registro de clientes.
-- Consulta del historial y estado de pedidos.
-- Actualización de direcciones para pedidos en estado `CONFIRMED` o `PREPARING`.
-- Consulta de cobertura de garantías.
-- Creación de reclamos de garantía y generación de tickets.
-- Escalamiento de tickets a atención humana.
-- Solicitud general de un asesor, incluso si el cliente no se ha identificado.
-- Consulta de políticas, preguntas frecuentes y guías mediante RAG con pgvector.
-- Memoria conversacional en Redis con tiempo de expiración configurable.
-- Interfaz de chat en Streamlit.
+El objetivo principal fue construir un agente capaz de resolver tres escenarios de negocio:
 
-## Tecnologías principales
+1. Recomendar y comparar productos según la necesidad y el presupuesto del usuario.
+2. Consultar pedidos de forma segura, validando primero al cliente.
+3. Consultar garantías, registrar reclamos y escalar casos que necesiten atención humana.
 
-| Componente | Tecnología |
+Como alcance adicional se implementaron registro de clientes, actualización de direcciones,
+consulta de políticas mediante RAG y transferencia general a un asesor.
+
+## Alcance entregado
+
+| Área | Implementación |
 |---|---|
-| Lenguaje | Python 3.12 |
-| API | FastAPI |
-| Servidor ASGI | Uvicorn |
-| Interfaz web | Streamlit |
-| Base de datos | PostgreSQL 16 |
-| Búsqueda vectorial | pgvector |
-| ORM | SQLAlchemy 2 |
-| Sesiones | Redis 7 |
-| Modelos y validación | Pydantic 2 |
-| Proveedor de IA | OpenAI Responses API |
-| Gestión de dependencias | uv |
-| Pruebas y calidad | pytest, Ruff y Pyrefly |
-| Contenedores | Docker Compose |
+| Venta consultiva | Búsqueda por categoría, presupuesto, uso y especificaciones; comparación por SKU. |
+| Clientes | Consulta por identificación y registro con validación de nombre, teléfono y correo. |
+| Pedidos | Listado, consulta individual y actualización controlada de dirección. |
+| Garantías | Validación de cobertura por pedido y producto. |
+| Reclamos | Creación de ticket, prevención de duplicados y consulta de estado. |
+| Atención humana | Escalamiento de reclamos y transferencia general de conversaciones. |
+| Base de conocimiento | Recuperación semántica de políticas, preguntas frecuentes y guías. |
+| Memoria | Persistencia del historial y del estado del flujo en Redis. |
+| Interfaz | Chat web en Streamlit conectado a la API. |
+| Infraestructura | Entorno reproducible con Docker Compose. |
 
-## Arquitectura
+## Cómo evaluar la prueba
 
-El código sigue una separación por capas. El dominio no depende de FastAPI, SQLAlchemy, Redis ni
-OpenAI; las integraciones concretas se conectan mediante puertos definidos por la aplicación.
+### Requisitos
+
+- Docker Engine.
+- Docker Compose v2.
+- Una API key de OpenAI con acceso al modelo conversacional y al modelo de embeddings.
+
+### Puesta en marcha
+
+1. Crea el archivo de configuración:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Agrega la credencial en `.env`:
+
+   ```dotenv
+   OPENAI_API_KEY=tu_api_key
+   ```
+
+3. Construye e inicia la solución:
+
+   ```bash
+   docker compose up --build
+   ```
+
+4. Abre la interfaz:
+
+   - Chat: http://localhost:8501
+   - API: http://localhost:8000
+   - Swagger: http://localhost:8000/docs
+
+Durante el primer arranque, PostgreSQL crea el esquema y carga los datos de demostración. Después,
+el servicio `knowledge-ingestion` genera los embeddings pendientes. La API inicia cuando este
+proceso termina correctamente.
+
+## Escenarios de demostración
+
+Los siguientes casos permiten revisar los flujos principales sin preparar información adicional.
+Todos los clientes, pedidos y productos son datos ficticios.
+
+### 1. Venta consultiva
+
+Mensaje inicial:
+
+```text
+Necesito un portátil para diseño gráfico, con 16 GB de RAM y un presupuesto máximo de 5 millones.
+```
+
+Después:
+
+```text
+Compara las dos mejores opciones.
+```
+
+Resultado que se busca comprobar:
+
+- El agente consulta el catálogo antes de responder.
+- Respeta el presupuesto y la disponibilidad.
+- Presenta información obtenida desde PostgreSQL.
+- Explica ventajas y diferencias sin asumir que el producto más costoso es el mejor.
+
+### 2. Consulta de pedido
+
+```text
+Quiero consultar el estado del pedido ORD-1001.
+```
+
+Cuando el agente solicite identificación, usa:
+
+```text
+1020304050
+```
+
+Resultado que se busca comprobar:
+
+- La identificación se valida antes de consultar información privada.
+- El número de identificación no se envía como argumento libre desde el modelo a la herramienta.
+- El pedido se consulta junto con el cliente para impedir acceso a pedidos ajenos.
+- El agente informa estado y fecha estimada sin inventar datos.
+
+### 3. Cambio de dirección
+
+```text
+Quiero cambiar la dirección del pedido ORD-1010 a Calle 20 # 15-30, Pereira.
+```
+
+Identificación de prueba:
+
+```text
+33445566
+```
+
+El pedido está en estado `PREPARING`, por lo que permite el cambio. La aplicación rechaza la
+operación cuando el pedido ya fue enviado, entregado o cancelado.
+
+### 4. Garantía y creación de reclamo
+
+```text
+Quiero revisar la garantía del pedido ORD-1002.
+```
+
+Usa la identificación:
+
+```text
+987654321
+```
+
+El pedido tiene dos productos con garantía. Para probar la creación de un reclamo nuevo, selecciona:
+
+```text
+AUD-SON-001
+```
+
+Después describe una falla concreta, por ejemplo:
+
+```text
+El parlante se apaga después de unos minutos aunque esté completamente cargado.
+```
+
+Resultado que se busca comprobar:
+
+- El agente solicita elegir un producto cuando el pedido contiene varias garantías.
+- La cobertura se valida antes de registrar el caso.
+- El problema reportado no es completado ni modificado por el agente.
+- Se genera un número de ticket.
+- Si ya existe un reclamo activo, se recupera el existente en lugar de crear otro.
+
+### 5. Base de conocimiento
+
+```text
+¿Cuánto tarda un envío a una ciudad principal?
+```
+
+Resultado que se busca comprobar:
+
+- El agente usa búsqueda semántica sobre `kb_chunks`.
+- La respuesta proviene de los fragmentos recuperados.
+- Si no existe información suficientemente relevante, el agente lo indica y no completa la
+  respuesta con conocimiento externo.
+
+### 6. Atención humana
+
+```text
+Quiero hablar con un asesor.
+```
+
+Este flujo no requiere identificación. La solicitud queda asociada a la sesión y no se duplica si
+el usuario vuelve a pedir un asesor mientras existe una atención activa.
+
+## Decisiones técnicas
+
+### Arquitectura por capas
+
+La solución separa dominio, aplicación, infraestructura e interfaces. Las reglas de negocio no
+dependen directamente de FastAPI, SQLAlchemy, Redis u OpenAI.
+
+```text
+app/
+├── domain/          Entidades, objetos de valor y reglas del negocio
+├── application/     Casos de uso, DTO, herramientas, puertos y prompt
+├── infrastructure/ PostgreSQL, Redis, OpenAI, pgvector y configuración
+└── interfaces/      API, esquemas HTTP, middleware e inyección de dependencias
+```
+
+Los servicios trabajan con puertos y los adaptadores concretos se conectan en
+`app/interfaces/api/deps.py`. Esto permite reemplazar un repositorio o proveedor sin trasladar sus
+detalles al dominio.
+
+### Uso controlado de herramientas
+
+El modelo no consulta directamente la base de datos. Solicita herramientas registradas en
+`ToolRegistry`, cuyos argumentos son validados con modelos Pydantic antes de ejecutarse.
+
+Las herramientas cubren:
+
+- Catálogo y comparación.
+- Identificación y registro de clientes.
+- Consulta y modificación de pedidos.
+- Garantías y reclamos.
+- Atención humana.
+- Búsqueda en la base de conocimiento.
+
+Se limita la cantidad de rondas de herramientas por interacción mediante
+`AGENT_MAX_TOOL_ROUNDS`.
+
+### Seguridad de la información del cliente
+
+La identificación validada se conserva dentro del estado de la sesión. Las herramientas privadas
+de pedidos, garantías y escalamiento obtienen al cliente desde ese contexto; el modelo no puede
+enviar una identificación arbitraria para consultar datos.
+
+Los repositorios también filtran por recurso y cliente en la misma consulta. Si un pedido o ticket
+pertenece a otra persona, la aplicación responde como no encontrado y no confirma su existencia.
+
+### Memoria conversacional
+
+Redis conserva:
+
+- Historial de mensajes.
+- Estado de identificación del cliente.
+- Datos parciales de registro.
+- Acción que debe retomarse después de la verificación.
+- Referencias temporales de pedidos, garantías y tickets.
+
+Cada conversación utiliza un UUID como `session_id`. Su duración se configura con
+`REDIS_SESSION_TTL_SECONDS`.
+
+### RAG con PostgreSQL y pgvector
+
+La base de conocimiento se almacena en `kb_chunks`. Cada fragmento tiene contenido, fuente,
+metadatos y un embedding de 1536 dimensiones.
+
+El flujo de recuperación:
+
+1. Convierte la consulta en un embedding.
+2. Ejecuta una búsqueda por distancia coseno en pgvector.
+3. Convierte la distancia en un puntaje de similitud.
+4. Aplica un umbral mínimo y un margen respecto al mejor resultado.
+5. Entrega al agente únicamente los fragmentos aceptados.
+
+El margen adaptativo ayuda a tolerar consultas con errores de escritura sin mezclar contenido de
+temas poco relacionados.
+
+## Arquitectura general
 
 ```mermaid
 flowchart LR
@@ -61,345 +276,18 @@ flowchart LR
     Retrieval --> VectorStore[(pgvector)]
 ```
 
-Responsabilidad de cada capa:
-
-- `app/domain`: entidades, objetos de valor y reglas independientes de infraestructura.
-- `app/application`: DTO, servicios, puertos, herramientas y prompt del agente.
-- `app/infrastructure`: configuración, PostgreSQL, Redis, OpenAI, repositorios y pgvector.
-- `app/interfaces`: rutas HTTP, esquemas de entrada/salida, dependencias y middleware.
-- `frontend`: cliente Streamlit que consume la API.
-
-El ensamblado de dependencias está centralizado en `app/interfaces/api/deps.py`. Allí se registran
-las herramientas que el modelo puede ejecutar y se conectan con sus repositorios o servicios.
-
-## Estructura del repositorio
-
-```text
-.
-├── app/
-│   ├── application/          # Casos de uso, DTO, herramientas, puertos y prompt
-│   ├── domain/               # Entidades y objetos de valor
-│   ├── infrastructure/       # PostgreSQL, Redis, OpenAI, pgvector y configuración
-│   ├── interfaces/api/       # Endpoints, esquemas y dependencias de FastAPI
-│   ├── scripts/              # Carga de embeddings y utilidades
-│   └── main.py               # Creación de la aplicación FastAPI
-├── database/init.sql         # Esquema, restricciones y datos iniciales
-├── frontend/streamlit_app.py # Interfaz de chat
-├── knowledge/                # Documentos de referencia de la base de conocimiento
-├── modelado_datos/           # Diagrama entidad-relación en Mermaid
-├── tests/                    # Pruebas automatizadas
-├── docker-compose.yml
-├── Dockerfile
-└── pyproject.toml
-```
-
-## Requisitos
-
-Para ejecutar todo con Docker:
-
-- Docker Engine.
-- Docker Compose v2.
-- Una API key de OpenAI con acceso al modelo conversacional y al modelo de embeddings.
-
-Para desarrollo local:
-
-- Python 3.12.
-- [uv](https://docs.astral.sh/uv/).
-- PostgreSQL con la extensión pgvector y Redis. La forma más sencilla es iniciar solo esos dos
-  servicios con Docker Compose.
-
-## Variables de entorno
-
-Crea el archivo local a partir de la plantilla:
-
-```bash
-cp .env.example .env
-```
-
-Después configura como mínimo:
-
-```dotenv
-OPENAI_API_KEY=tu_api_key
-```
-
-No subas `.env` al repositorio. La plantilla `.env.example` contiene valores de desarrollo y no
-debe incluir credenciales reales.
-
-### Aplicación y conexiones
-
-| Variable | Valor de ejemplo | Uso |
-|---|---|---|
-| `APP_ENV` | `development` | Nombre del entorno de ejecución. |
-| `API_BASE_URL` | `http://localhost:8000` | URL que usa el frontend cuando se ejecuta localmente. |
-| `DATABASE_URL` | `postgresql+psycopg://postgres:postgres@localhost:5433/retail_ai` | Conexión SQLAlchemy a PostgreSQL. |
-| `REDIS_URL` | `redis://localhost:6379/0` | Conexión al almacenamiento de sesiones. |
-| `REDIS_SESSION_TTL_SECONDS` | `86400` | Duración de una sesión en segundos. |
-| `REDIS_SESSION_PREFIX` | `retail-ai:session` | Prefijo de las claves guardadas en Redis. |
-
-### OpenAI y agente
-
-| Variable | Valor de ejemplo | Uso |
-|---|---|---|
-| `OPENAI_API_KEY` | sin valor | Credencial requerida para chat y embeddings. |
-| `OPENAI_MODEL` | `gpt-5-mini` | Modelo usado por el agente. |
-| `OPENAI_REASONING_EFFORT` | `medium` | Esfuerzo de razonamiento: `minimal`, `low`, `medium` o `high`. |
-| `OPENAI_VERBOSITY` | `low` | Nivel de detalle: `low`, `medium` o `high`. |
-| `OPENAI_MAX_OUTPUT_TOKENS` | `5000` | Límite de tokens de salida por respuesta. |
-| `OPENAI_TIMEOUT_SECONDS` | `60` | Tiempo máximo de una solicitud a OpenAI. |
-| `OPENAI_MAX_RETRIES` | `2` | Reintentos ante fallos del proveedor. |
-| `AGENT_MAX_TOOL_ROUNDS` | `5` | Máximo de rondas de herramientas por mensaje. |
-
-### Búsqueda semántica
-
-| Variable | Valor de ejemplo | Uso |
-|---|---|---|
-| `EMBEDDING_MODEL` | `text-embedding-3-small` | Modelo usado para generar embeddings. |
-| `EMBEDDING_DIMENSIONS` | `1536` | Dimensión esperada por OpenAI, SQLAlchemy y pgvector. |
-| `KNOWLEDGE_SCORE_THRESHOLD` | `0.30` | Similitud mínima para aceptar un fragmento. |
-| `KNOWLEDGE_SCORE_MARGIN` | `0.10` | Distancia máxima permitida frente al mejor resultado. |
-
-`EMBEDDING_DIMENSIONS` debe mantenerse en `1536` con el esquema actual. Cambiarlo exige modificar
-la columna `kb_chunks.embedding` en `database/init.sql` y `KnowledgeChunkModel` antes de volver a
-generar los vectores.
-
-### Logs
-
-| Variable | Valor predeterminado | Uso |
-|---|---|---|
-| `LOG_LEVEL` | `INFO` | Nivel mínimo de registro. |
-| `LOG_DIRECTORY` | `logs` | Directorio de salida. En Docker se usa `/app/logs`. |
-| `LOG_FILENAME` | `app.log` | Nombre del archivo principal. |
-| `LOG_MAX_BYTES` | `5000000` | Tamaño máximo antes de rotar el archivo. |
-| `LOG_BACKUP_COUNT` | `5` | Cantidad de archivos históricos. |
-
-## Ejecución con Docker
-
-Esta es la opción recomendada para levantar el entorno completo:
-
-```bash
-docker compose up --build
-```
-
-El arranque sigue este orden:
-
-1. PostgreSQL crea el esquema y carga los datos iniciales.
-2. Redis queda disponible para las sesiones.
-3. `knowledge-ingestion` genera los embeddings que estén pendientes.
-4. FastAPI inicia cuando la base de datos y la indexación están listas.
-5. Streamlit inicia cuando la API responde correctamente.
-
-Servicios disponibles:
-
-| Servicio | URL o puerto |
-|---|---|
-| Frontend Streamlit | http://localhost:8501 |
-| API FastAPI | http://localhost:8000 |
-| Swagger UI | http://localhost:8000/docs |
-| PostgreSQL | `localhost:5433` |
-| Redis | `localhost:6379` |
-
-Para ejecutar en segundo plano:
-
-```bash
-docker compose up --build -d
-```
-
-Para revisar logs:
-
-```bash
-docker compose logs -f app
-docker compose logs -f knowledge-ingestion
-```
-
-Para detener los servicios sin borrar datos:
-
-```bash
-docker compose down
-```
-
-El archivo `database/init.sql` solo se ejecuta cuando PostgreSQL crea el volumen por primera vez.
-Si el esquema cambió y necesitas reconstruir la base local desde cero:
-
-```bash
-docker compose down -v
-docker compose up --build
-```
-
-El primer comando elimina la base de datos y las sesiones locales. No debe usarse si necesitas
-conservar esa información.
-
-## Ejecución para desarrollo local
-
-Este modo ejecuta FastAPI y Streamlit en la máquina, pero mantiene PostgreSQL y Redis en Docker.
-
-1. Instala las dependencias:
-
-   ```bash
-   uv sync
-   ```
-
-2. Inicia PostgreSQL y Redis:
-
-   ```bash
-   docker compose up -d db redis
-   ```
-
-3. Genera los embeddings pendientes:
-
-   ```bash
-   uv run python -m app.scripts.ingest_knowledge
-   ```
-
-4. Inicia la API:
-
-   ```bash
-   uv run uvicorn app.main:app --reload
-   ```
-
-5. En otra terminal, inicia el frontend:
-
-   ```bash
-   uv run streamlit run frontend/streamlit_app.py
-   ```
-
-La API necesita Redis desde el arranque. El endpoint `/chat` también requiere PostgreSQL, una API
-key válida y que los fragmentos de conocimiento tengan embeddings cuando se consulte el RAG.
-
-## Endpoints
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/` | Información básica del servicio. |
-| `GET` | `/health` | Verificación de disponibilidad de la API. |
-| `GET` | `/health_database` | Verificación de la conexión con PostgreSQL. |
-| `POST` | `/chat` | Envía un mensaje al agente. |
-| `GET` | `/docs` | Documentación interactiva de FastAPI. |
-
-### Enviar el primer mensaje
-
-El `session_id` es opcional. Si no se envía, la API genera uno:
-
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Busco un portátil para diseño gráfico por menos de 5 millones"
-  }'
-```
-
-Respuesta esperada:
-
-```json
-{
-  "session_id": "3a38a55e-a9ad-4d58-86a7-63b106a62e8c",
-  "reply": "..."
-}
-```
-
-### Continuar una conversación
-
-Usa el mismo `session_id` en los mensajes siguientes:
-
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "session_id": "3a38a55e-a9ad-4d58-86a7-63b106a62e8c",
-    "message": "Compara las dos mejores opciones"
-  }'
-```
-
-La sesión conserva el historial, el cliente verificado, acciones pendientes y datos parciales de
-garantías. Su duración depende de `REDIS_SESSION_TTL_SECONDS`.
-
-## Flujos que se pueden probar
-
-### Catálogo
-
-No requiere identificación:
-
-```text
-Busco un portátil para diseño gráfico, con 16 GB de RAM y presupuesto de 5 millones.
-```
-
-El agente consulta el catálogo y puede comparar los SKU encontrados. No debe inventar precios,
-existencias ni especificaciones.
-
-### Pedidos
-
-```text
-Quiero consultar el pedido ORD-1001.
-```
-
-El agente solicitará la identificación porque los pedidos son información privada. Para este caso
-puedes usar el cliente de prueba `1020304050`.
-
-La dirección solo puede modificarse cuando el pedido está `CONFIRMED` o `PREPARING`. Por ejemplo,
-el pedido `ORD-1010`, asociado al cliente `33445566`, permite probar ese flujo.
-
-### Garantías y reclamos
-
-```text
-Quiero revisar la garantía del pedido ORD-1002.
-```
-
-Usa la identificación `987654321`. Ese pedido tiene más de un producto con garantía, por lo que el
-agente debe pedir el SKU antes de continuar.
-
-El flujo completo es:
-
-1. Verificar al cliente.
-2. Consultar la garantía por pedido y producto.
-3. Confirmar que la cobertura esté vigente.
-4. Solicitar una descripción concreta de la falla.
-5. Crear o recuperar el ticket.
-6. Escalarlo si existe una razón válida para atención humana.
-
-### Atención humana general
-
-```text
-Quiero hablar con un asesor.
-```
-
-Este flujo no exige identificación. La solicitud se asocia a la sesión y, si ya existe una
-solicitud activa para esa sesión, se devuelve la misma en lugar de crear un duplicado.
-
-### Políticas y conocimiento
-
-```text
-¿Cuánto tarda un envío a una ciudad principal?
-```
-
-El agente consulta `kb_chunks` mediante búsqueda semántica. Si ningún fragmento supera el umbral
-configurado, debe indicar que no tiene información oficial suficiente.
-
-## Datos iniciales
-
-`database/init.sql` carga un conjunto de datos para desarrollo:
-
-- 54 productos de categorías como portátiles, televisores, celulares, accesorios, audio y gaming.
-- 10 clientes.
-- 15 pedidos con estados variados.
-- Líneas de pedido con cantidades y precios históricos.
-- 12 garantías vigentes y vencidas.
-- 5 reclamos de garantía en diferentes estados.
-- Fragmentos iniciales de políticas y preguntas frecuentes.
-
-Algunos casos útiles:
-
-| Identificación | Pedido | Caso |
-|---|---|---|
-| `1020304050` | `ORD-1001` | Pedido en tránsito y garantía vigente. |
-| `987654321` | `ORD-1002` | Pedido entregado con dos productos cubiertos. |
-| `33445566` | `ORD-1010` | Pedido en preparación; permite cambiar dirección. |
-| `77889900` | `ORD-1011` | Garantía vencida. |
-| `11223344` | `ORD-1007` | Reclamo previamente escalado. |
-
-Todos estos datos son ficticios y solo se usan para pruebas.
+Flujo de una interacción:
+
+1. FastAPI recibe el mensaje y crea o reutiliza el `session_id`.
+2. `AgentService` recupera la conversación desde Redis.
+3. El proveedor LLM recibe el historial, las instrucciones y las herramientas disponibles.
+4. Si el modelo solicita una herramienta, la aplicación valida y ejecuta la operación.
+5. El resultado vuelve al modelo para construir la respuesta final.
+6. La conversación actualizada se guarda nuevamente en Redis.
 
 ## Modelo de datos
 
-El modelo completo, con tipos y campos, está en
+El diagrama completo está disponible en
 [`modelado_datos/model_datos.mmd`](modelado_datos/model_datos.mmd).
 
 ```mermaid
@@ -414,129 +302,166 @@ erDiagram
     CUSTOMERS o|--o{ HUMAN_HANDOFFS : puede_asociarse
 ```
 
-Consideraciones importantes:
+Aspectos relevantes del modelado:
 
-- `order_items` resuelve la relación muchos a muchos entre pedidos y productos y conserva el
-  precio unitario de la compra.
-- Una garantía identifica el pedido y el producto cubierto. La combinación es única.
-- Un reclamo pertenece a una garantía y a un cliente; su `id` también funciona como número de
-  ticket.
-- `human_handoffs.customer_id` es opcional porque una persona puede pedir un asesor antes de
-  identificarse.
-- Solo puede existir un handoff activo (`PENDING` o `ASSIGNED`) por sesión.
-- `human_handoffs.session_id` apunta de forma lógica a la conversación de Redis; no es una clave
-  foránea porque las sesiones no viven en PostgreSQL.
-- `kb_chunks` es independiente del modelo transaccional y almacena un vector de 1536 dimensiones.
+- `order_items` conserva los productos, cantidades y precios registrados en cada compra.
+- La combinación de pedido y producto es única tanto en líneas de pedido como en garantías.
+- El identificador de `warranty_claims` funciona también como número de ticket.
+- `human_handoffs.customer_id` es opcional porque una conversación puede escalarse antes de
+  identificar al usuario.
+- Un índice parcial permite solamente un handoff activo por sesión.
+- `session_id` relaciona lógicamente el handoff con Redis, pero no es una clave foránea porque las
+  conversaciones no se almacenan en PostgreSQL.
+- `kb_chunks` permanece separado de las tablas transaccionales.
 
-## Base de conocimiento y embeddings
+## Datos incluidos para la evaluación
 
-Los fragmentos iniciales se insertan en `kb_chunks` desde `database/init.sql`. El comando de
-ingesta no vuelve a leer automáticamente todos los archivos de `knowledge/`; su función es buscar
-filas cuyo `embedding` sea `NULL`, generar el vector y guardarlo.
+`database/init.sql` crea y carga:
+
+- 54 productos.
+- 10 clientes.
+- 15 pedidos.
+- 23 líneas de pedido.
+- 12 garantías.
+- 5 reclamos en distintos estados.
+- Fragmentos iniciales de políticas y preguntas frecuentes.
+
+Casos útiles:
+
+| Identificación | Pedido | Uso sugerido |
+|---|---|---|
+| `1020304050` | `ORD-1001` | Pedido en tránsito y garantía vigente. |
+| `987654321` | `ORD-1002` | Pedido entregado con dos productos cubiertos. |
+| `33445566` | `ORD-1010` | Pedido modificable en estado `PREPARING`. |
+| `77889900` | `ORD-1011` | Garantía vencida. |
+| `11223344` | `ORD-1007` | Reclamo previamente escalado. |
+
+## API
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/` | Información básica del servicio. |
+| `GET` | `/health` | Verifica que la API esté disponible. |
+| `GET` | `/health_database` | Verifica la conexión con PostgreSQL. |
+| `POST` | `/chat` | Procesa un mensaje del usuario. |
+| `GET` | `/docs` | Documentación interactiva. |
+
+Ejemplo:
 
 ```bash
-uv run python -m app.scripts.ingest_knowledge --batch-size 50
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Busco un portátil para diseño gráfico por menos de 5 millones"
+  }'
 ```
 
-El proceso es idempotente para fragmentos ya vectorizados. Si se modifica el contenido de una fila
-existente y se necesita regenerar su embedding, primero debe dejarse su columna `embedding` en
-`NULL`.
+Respuesta:
 
-El índice HNSW está documentado, pero no se crea por defecto porque el volumen de datos de prueba es
-pequeño. Para una base de conocimiento mayor debe habilitarse después de cargar los embeddings.
+```json
+{
+  "session_id": "3a38a55e-a9ad-4d58-86a7-63b106a62e8c",
+  "reply": "..."
+}
+```
 
-## Reglas de seguridad del agente
+Para continuar la conversación se debe enviar el mismo `session_id` en las solicitudes siguientes.
 
-- Las herramientas de pedidos y garantías toman la identificación desde la sesión verificada, no
-  desde argumentos generados libremente por el modelo.
-- Un pedido, garantía o ticket se consulta junto con el cliente para no revelar datos ajenos.
-- El agente no expone teléfonos ni correos almacenados.
-- La búsqueda de conocimiento no debe recibir datos personales.
-- Los resultados de herramientas son la fuente de verdad para precios, inventario, pedidos,
-  coberturas y políticas.
-- La atención humana general puede solicitarse sin identificar al cliente.
+## Ejecución local
 
-Esta validación es adecuada para la prueba técnica, pero no reemplaza autenticación real,
-autorización, auditoría ni cifrado de secretos en un entorno productivo.
+Este modo mantiene PostgreSQL y Redis en Docker, pero ejecuta la API y el frontend en la máquina:
 
-## Pruebas y calidad
+```bash
+uv sync
+docker compose up -d db redis
+uv run python -m app.scripts.ingest_knowledge
+uv run uvicorn app.main:app --reload
+```
 
-Ejecuta las pruebas:
+En otra terminal:
+
+```bash
+uv run streamlit run frontend/streamlit_app.py
+```
+
+La conexión local predeterminada usa PostgreSQL en el puerto `5433` y Redis en el puerto `6379`.
+
+## Configuración
+
+Las variables se encuentran documentadas en `.env.example`. Las más importantes para evaluar la
+solución son:
+
+| Variable | Propósito |
+|---|---|
+| `OPENAI_API_KEY` | Credencial requerida para chat y embeddings. |
+| `OPENAI_MODEL` | Modelo conversacional. |
+| `OPENAI_REASONING_EFFORT` | Nivel de razonamiento solicitado al modelo. |
+| `OPENAI_MAX_OUTPUT_TOKENS` | Límite de tokens por respuesta. |
+| `AGENT_MAX_TOOL_ROUNDS` | Máximo de rondas de herramientas. |
+| `DATABASE_URL` | Conexión local a PostgreSQL. |
+| `REDIS_URL` | Conexión al almacenamiento de sesiones. |
+| `REDIS_SESSION_TTL_SECONDS` | Tiempo de vida de la conversación. |
+| `EMBEDDING_MODEL` | Modelo usado para búsqueda semántica. |
+| `EMBEDDING_DIMENSIONS` | Dimensión del vector, actualmente `1536`. |
+| `KNOWLEDGE_SCORE_THRESHOLD` | Similitud mínima aceptada. |
+| `KNOWLEDGE_SCORE_MARGIN` | Diferencia permitida respecto al mejor resultado. |
+
+La dimensión configurada debe coincidir con OpenAI, `KnowledgeChunkModel` y la columna
+`kb_chunks.embedding`.
+
+## Validaciones ejecutadas
+
+Comandos disponibles para revisar la entrega:
 
 ```bash
 uv run pytest
-```
-
-Revisa formato e importaciones:
-
-```bash
 uv run ruff check .
-```
-
-Ejecuta el análisis de tipos:
-
-```bash
 uv run pyrefly check
 ```
 
-También se puede ejecutar la configuración completa de pre-commit:
+Estado al preparar esta documentación:
 
-```bash
-uv run pre-commit run --all-files
+- Pruebas: `1 passed`.
+- Ruff: sin errores.
+- Pyrefly: `0 errors`.
+- Docker Compose: configuración válida para `db`, `redis`, `knowledge-ingestion`, `app` y
+  `frontend`.
+
+La prueba automatizada actual cubre el endpoint de salud. Los servicios de recuperación, herramientas
+y repositorios tienen una estructura preparada para ampliar pruebas unitarias y de integración.
+
+## Estructura de la entrega
+
+```text
+.
+├── app/                       Código principal por capas
+├── database/init.sql          Esquema y datos de demostración
+├── frontend/streamlit_app.py  Interfaz conversacional
+├── knowledge/                 Documentos de soporte
+├── modelado_datos/            Diagrama entidad-relación
+├── tests/                     Pruebas automatizadas
+├── .env.example               Plantilla de configuración
+├── docker-compose.yml         Orquestación del entorno
+├── Dockerfile                 Imagen de la API
+├── Dockerfile.frontend        Imagen de Streamlit
+└── pyproject.toml             Dependencias y herramientas de calidad
 ```
 
-## Solución de problemas
+## Limitaciones y trabajo futuro
 
-### La API no inicia y muestra un error de Redis
+La entrega prioriza los flujos solicitados y una separación clara de responsabilidades. Para llevar
+la solución a producción todavía sería necesario:
 
-La aplicación valida Redis durante el arranque:
+- Implementar autenticación real; la identificación conversacional no reemplaza una sesión
+  autenticada.
+- Administrar el esquema mediante migraciones. Alembic está incluido, pero el entorno actual se
+  inicializa desde `database/init.sql`.
+- Incorporar pruebas unitarias e integración para todos los repositorios y herramientas.
+- Añadir métricas, trazas distribuidas y alertas.
+- Gestionar secretos mediante un servicio especializado.
+- Crear una interfaz administrativa para asignar y cerrar solicitudes de atención humana.
+- Persistir o reconstruir en el frontend el historial visible al abrir una sesión desde otro
+  navegador.
 
-```bash
-docker compose up -d redis
-```
-
-Comprueba también que `REDIS_URL` use `localhost` al ejecutar Python localmente y `redis` cuando la
-aplicación se ejecuta dentro de Docker.
-
-### Docker no inicia `app`
-
-Revisa primero la ingesta:
-
-```bash
-docker compose logs knowledge-ingestion
-```
-
-En el primer arranque se necesita `OPENAI_API_KEY` para generar los embeddings. El servicio `app`
-espera que `knowledge-ingestion` termine correctamente.
-
-### El esquema nuevo no aparece en PostgreSQL
-
-`database/init.sql` no modifica automáticamente un volumen existente. En un entorno local que pueda
-reiniciarse:
-
-```bash
-docker compose down -v
-docker compose up --build
-```
-
-### La búsqueda semántica falla por dimensiones
-
-Verifica que `EMBEDDING_DIMENSIONS=1536`. La configuración, el modelo ORM y la columna pgvector
-deben usar la misma dimensión.
-
-### El chat pierde el contexto
-
-Confirma que el frontend reutiliza el mismo `session_id` y que la sesión todavía existe en Redis.
-Una sesión expira después del tiempo definido en `REDIS_SESSION_TTL_SECONDS`.
-
-## Estado actual y límites conocidos
-
-- El esquema se administra con `database/init.sql`. Alembic está incluido como dependencia, pero
-  todavía no tiene migraciones configuradas.
-- Los handoffs pueden crearse y consultarse como solicitud activa, pero aún no existe una API
-  administrativa para asignarlos o cerrarlos.
-- La interfaz conserva el identificador de sesión en la URL, pero no reconstruye visualmente los
-  mensajes anteriores al abrirla en otro navegador.
-- El chat y la indexación dependen de OpenAI; no existe un proveedor local alternativo configurado.
-- El proyecto está preparado como prueba técnica. Antes de producción se deben agregar
-  autenticación, gestión segura de secretos, migraciones, observabilidad y pruebas de integración.
+Estas decisiones se dejaron fuera para mantener el alcance centrado en la prueba técnica y en los
+escenarios funcionales evaluables.
