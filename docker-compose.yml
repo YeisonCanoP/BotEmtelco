@@ -46,30 +46,31 @@ services:
       dockerfile: Dockerfile
     container_name: retail_ai_app
     environment:
-      APP_ENV: development
+      APP_ENV: ${APP_ENV:-development}
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/retail_ai
 
       REDIS_URL: redis://redis:6379/0
-      REDIS_SESSION_TTL_SECONDS: 86400
-      REDIS_SESSION_PREFIX: retail-ai:session
+      REDIS_SESSION_TTL_SECONDS: ${REDIS_SESSION_TTL_SECONDS:-86400}
+      REDIS_SESSION_PREFIX: ${REDIS_SESSION_PREFIX:-retail-ai:session}
 
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: gpt-5-mini
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
       OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-low}
       OPENAI_VERBOSITY: ${OPENAI_VERBOSITY:-low}
       OPENAI_MAX_OUTPUT_TOKENS: ${OPENAI_MAX_OUTPUT_TOKENS:-800}
       OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-60}
       OPENAI_MAX_RETRIES: ${OPENAI_MAX_RETRIES:-2}
+      AGENT_MAX_TOOL_ROUNDS: ${AGENT_MAX_TOOL_ROUNDS:-5}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
       KNOWLEDGE_SCORE_THRESHOLD: ${KNOWLEDGE_SCORE_THRESHOLD:-0.30}
       KNOWLEDGE_SCORE_MARGIN: ${KNOWLEDGE_SCORE_MARGIN:-0.10}
 
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      LOG_DIRECTORY: /app/logs
-      LOG_FILENAME: app.log
-      LOG_MAX_BYTES: 5000000
-      LOG_BACKUP_COUNT: 5
+      LOG_DIRECTORY: ${LOG_DIRECTORY:-/app/logs}
+      LOG_FILENAME: ${LOG_FILENAME:-app.log}
+      LOG_MAX_BYTES: ${LOG_MAX_BYTES:-5000000}
+      LOG_BACKUP_COUNT: ${LOG_BACKUP_COUNT:-5}
     ports:
       - "8000:8000"
     depends_on:

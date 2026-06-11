@@ -1,47 +1,91 @@
 erDiagram
     CUSTOMERS ||--o{ ORDERS : realiza
-    PRODUCTS ||--o{ WARRANTIES : tiene
-    ORDERS ||--o{ WARRANTIES : incluye
+    ORDERS ||--o{ ORDER_ITEMS : contiene
+    PRODUCTS ||--o{ ORDER_ITEMS : aparece_en
+    ORDERS ||--o{ WARRANTIES : genera
+    PRODUCTS ||--o{ WARRANTIES : cubre
+    WARRANTIES ||--o{ WARRANTY_CLAIMS : recibe
+    CUSTOMERS ||--o{ WARRANTY_CLAIMS : reporta
+    CUSTOMERS o|--o{ HUMAN_HANDOFFS : puede_asociarse
 
     PRODUCTS {
-        string sku PK
-        string name
-        string category
-        int price_COP
+        varchar_30 sku PK
+        varchar_150 name
+        varchar_50 category
+        text description
+        numeric_12_2 price
+        integer stock
         jsonb specs
-        int stock
+        timestamptz created_at
     }
 
     CUSTOMERS {
-        string identification PK
-        string full_name
-        string phone
-        string email
-        string kind
-        datetime created_at
+        varchar_11 identification PK
+        varchar_100 full_name
+        varchar_10 phone
+        varchar_150 email UK
+        varchar_20 kind
+        timestamptz created_at
     }
 
     ORDERS {
-        int id PK
-        string customer_id FK
-        string status
+        varchar_30 id PK
+        varchar_11 customer_id FK
+        varchar_30 status
         date estimated_delivery
-        string address
+        varchar_250 address
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    ORDER_ITEMS {
+        bigserial id PK
+        varchar_30 order_id FK
+        varchar_30 product_sku FK
+        integer quantity
+        numeric_12_2 unit_price
+        timestamptz created_at
     }
 
     WARRANTIES {
-        int id PK
-        string product_sku FK
-        int order_id FK
+        varchar_30 id PK
+        varchar_30 product_sku FK
+        varchar_30 order_id FK
         boolean active
+        date starts_on
         date expires_on
+        timestamptz created_at
+    }
+
+    WARRANTY_CLAIMS {
+        varchar_40 id PK
+        varchar_30 warranty_id FK
+        varchar_11 customer_id FK
+        text description
+        varchar_30 status
+        boolean requires_human
+        text escalation_reason
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    HUMAN_HANDOFFS {
+        varchar_40 id PK
+        uuid session_id
+        varchar_11 customer_id FK
+        varchar_40 reason
+        text summary
+        varchar_20 status
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     KB_CHUNKS {
-        int id PK
-        string source
-        string title
+        bigserial id PK
+        varchar_255 source
+        varchar_255 title
         text content
         jsonb metadata
-        vector embedding_1536
+        vector_1536 embedding
+        timestamptz created_at
     }
