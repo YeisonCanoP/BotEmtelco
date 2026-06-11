@@ -30,6 +30,11 @@ from app.application.dtos.customer import (
     CustomerRegistrationResultDTO,
     CustomerResultDTO,
 )
+from app.application.dtos.knowledge import (
+    KnowledgeChunkResultDTO,
+    KnowledgeSearchInputDTO,
+    KnowledgeSearchResultDTO,
+)
 from app.application.dtos.llm import (
     LLMRequestDTO,
     LLMResponseDTO,
@@ -90,6 +95,9 @@ __all__ = [
     "LLMResponseDTO",
     "MessageRole",
     "PendingAction",
+    "KnowledgeChunkResultDTO",
+    "KnowledgeSearchInputDTO",
+    "KnowledgeSearchResultDTO",
     "ProductComparisonResultDTO",
     "ProductResultDTO",
     "ToolCallDTO",

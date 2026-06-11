@@ -412,6 +412,7 @@ class WarrantyClaimDTO(BaseModel):
         description: Descripción normalizada del problema.
         status: Estado actual del reclamo.
         requires_human: Indica si el caso requiere atención humana.
+        escalation_reason: Motivo registrado al escalar el caso.
         created_at: Fecha y hora de creación del reclamo.
         updated_at: Fecha y hora de última actualización.
     """
@@ -435,9 +436,33 @@ class WarrantyClaimDTO(BaseModel):
 
     requires_human: bool
 
+    escalation_reason: str | None = Field(
+        default=None,
+        min_length=10,
+        max_length=1_000,
+    )
+
     created_at: datetime
 
     updated_at: datetime
+
+    @model_validator(mode="after")
+    def validate_escalation(self) -> Self:
+        """Valida la consistencia de los datos de escalamiento."""
+
+        if self.status is WarrantyClaimStatus.ESCALATED:
+            if not self.requires_human:
+                raise ValueError("Un reclamo escalado debe requerir atención humana")
+
+            if self.escalation_reason is None:
+                raise ValueError("Un reclamo escalado debe incluir el motivo")
+
+        if self.escalation_reason is not None and not self.requires_human:
+            raise ValueError(
+                "Un reclamo sin atención humana no puede incluir motivo de escalamiento"
+            )
+
+        return self
 
 
 WarrantyClaimCreateReason = Literal[

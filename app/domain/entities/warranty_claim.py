@@ -72,6 +72,8 @@ class WarrantyClaim:
         status: Estado actual del reclamo dentro del flujo de garantía.
         requires_human: Indica si el caso debe ser atendido o revisado por un
             asesor humano.
+        escalation_reason: Motivo registrado al escalar el caso. Es `None`
+            mientras el reclamo no haya sido escalado.
         created_at: Fecha y hora en la que se creó el reclamo.
         updated_at: Fecha y hora de la última actualización del reclamo.
 
@@ -86,5 +88,6 @@ class WarrantyClaim:
     description: str
     status: WarrantyClaimStatus
     requires_human: bool
+    escalation_reason: str | None
     created_at: datetime
     updated_at: datetime

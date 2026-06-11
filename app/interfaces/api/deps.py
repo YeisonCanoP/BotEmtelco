@@ -30,6 +30,7 @@ from app.application.ports.repositories import (
     CatalogRepository,
     CustomerRepository,
     OrderRepository,
+    WarrantyRepository,
 )
 from app.application.ports.session_store import SessionStore
 from app.application.services.agent_service import AgentService
@@ -38,11 +39,14 @@ from app.application.services.conversation_context import (
 )
 from app.application.services.customer_service import CustomerService
 from app.application.tools import (
+    CheckWarrantyTool,
     CompareProductsTool,
+    EscalateWarrantyClaimTool,
     FindCustomerTool,
     GetCustomerOrderTool,
     ListCustomerOrdersTool,
     RegisterCustomerTool,
+    RegisterWarrantyClaimTool,
     SearchCatalogTool,
     ToolRegistry,
     UpdateOrderAddressTool,
@@ -58,6 +62,9 @@ from app.infrastructure.repositories.sql_customers import (
     SqlCustomerRepository,
 )
 from app.infrastructure.repositories.sql_orders import SqlOrderRepository
+from app.infrastructure.repositories.sql_warranties import (
+    SqlWarrantyRepository,
+)
 from app.infrastructure.session.redis_session_store import (
     RedisSessionStore,
 )
@@ -148,6 +155,34 @@ OrderRepositoryDependency = Annotated[
 ]
 
 
+def get_warranty_repository(
+    db: DbSession,
+) -> WarrantyRepository:
+    """
+    Construye el repositorio de garantías para la petición actual.
+
+    El repositorio consulta garantías, registra reclamos técnicos y escala
+    tickets mediante PostgreSQL.
+
+    Todas las operaciones sensibles validan que el pedido, la garantía o el
+    ticket pertenezcan al cliente verificado en la conversación.
+
+    Args:
+        db: Sesión SQLAlchemy activa de la petición.
+
+    Returns:
+        Implementación PostgreSQL del repositorio de garantías.
+    """
+
+    return SqlWarrantyRepository(db)
+
+
+WarrantyRepositoryDependency = Annotated[
+    WarrantyRepository,
+    Depends(get_warranty_repository),
+]
+
+
 def get_customer_service(
     repository: CustomerRepositoryDependency,
 ) -> CustomerService:
@@ -205,6 +240,7 @@ def get_tool_registry(
     catalog_repository: CatalogDependency,
     customer_service: CustomerServiceDependency,
     order_repository: OrderRepositoryDependency,
+    warranty_repository: WarrantyRepositoryDependency,
     conversation_context: ConversationContextDependency,
 ) -> ToolRegistry:
     """
@@ -223,11 +259,15 @@ def get_tool_registry(
     - `ListCustomerOrdersTool`: lista pedidos del cliente verificado.
     - `GetCustomerOrderTool`: consulta un pedido del cliente verificado.
     - `UpdateOrderAddressTool`: actualiza la dirección de entrega de un pedido.
+    - `CheckWarrantyTool`: valida cobertura de garantía.
+    - `RegisterWarrantyClaimTool`: registra un reclamo y genera su ticket.
+    - `EscalateWarrantyClaimTool`: escala un ticket a atención humana.
 
     Args:
         catalog_repository: Repositorio usado por herramientas de catálogo.
         customer_service: Servicio usado por herramientas de clientes.
         order_repository: Repositorio usado por herramientas de pedidos.
+        warranty_repository: Repositorio usado por herramientas de garantías.
         conversation_context: Contexto compartido entre herramientas y agente.
 
     Returns:
@@ -256,6 +296,18 @@ def get_tool_registry(
             ),
             UpdateOrderAddressTool(
                 repository=order_repository,
+                conversation_context=conversation_context,
+            ),
+            CheckWarrantyTool(
+                repository=warranty_repository,
+                conversation_context=conversation_context,
+            ),
+            RegisterWarrantyClaimTool(
+                repository=warranty_repository,
+                conversation_context=conversation_context,
+            ),
+            EscalateWarrantyClaimTool(
+                repository=warranty_repository,
                 conversation_context=conversation_context,
             ),
         ]

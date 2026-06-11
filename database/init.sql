@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS warranty_claims
     description    TEXT        NOT NULL,
     status         VARCHAR(30) NOT NULL DEFAULT 'OPEN',
     requires_human BOOLEAN     NOT NULL DEFAULT FALSE,
+    escalation_reason TEXT,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -153,6 +154,16 @@ CREATE TABLE IF NOT EXISTS warranty_claims
                        'ESCALATED',
                        'RESOLVED',
                        'REJECTED'
+                )
+            ),
+
+    CONSTRAINT warranty_claim_escalation_valid
+        CHECK (
+            status <> 'ESCALATED'
+            OR (
+                requires_human = TRUE
+                AND escalation_reason IS NOT NULL
+                AND length(trim(escalation_reason)) >= 10
                 )
             )
 );
@@ -1285,22 +1296,31 @@ ON CONFLICT (id) DO NOTHING;
 -- RECLAMOS DE GARANTÍA (5)
 -- =========================================================
 
-INSERT INTO warranty_claims (id, warranty_id, customer_id, description, status, requires_human)
+INSERT INTO warranty_claims (
+    id,
+    warranty_id,
+    customer_id,
+    description,
+    status,
+    requires_human,
+    escalation_reason
+)
 VALUES ('CLM-0001', 'WAR-1001', '987654321',
         'El televisor LG muestra líneas horizontales en la pantalla al encenderse.',
-        'IN_REVIEW', FALSE),
+        'IN_REVIEW', FALSE, NULL),
        ('CLM-0002', 'WAR-1002', '1020304050',
         'El portátil ASUS se apaga inesperadamente bajo carga moderada.',
-        'OPEN', FALSE),
+        'OPEN', FALSE, NULL),
        ('CLM-0003', 'WAR-1006', '11223344',
         'El MacBook Pro no carga correctamente con ninguno de los cables USB-C.',
-        'ESCALATED', TRUE),
+        'ESCALATED', TRUE,
+        'El caso requiere diagnóstico especializado y revisión de hardware.'),
        ('CLM-0004', 'WAR-1007', '55667788',
         'El iPhone 15 reinicia solo varias veces al día sin motivo aparente.',
-        'RESOLVED', FALSE),
+        'RESOLVED', FALSE, NULL),
        ('CLM-0005', 'WAR-1008', '99001122',
         'El control DualSense tiene drift en el joystick izquierdo.',
-        'OPEN', FALSE)
+        'OPEN', FALSE, NULL)
 ON CONFLICT (id) DO NOTHING;
 
 -- =========================================================

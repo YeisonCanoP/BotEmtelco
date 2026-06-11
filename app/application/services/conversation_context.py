@@ -263,6 +263,10 @@ class ConversationContext:
 
         draft.order_number = order_number
         draft.product_sku = product_sku
+        draft.warranty_id = None
+        draft.issue_description = None
+        draft.ticket_number = None
+        draft.escalation_reason = None
 
         self.set_pending_action(
             action=PendingAction.CHECK_WARRANTY,

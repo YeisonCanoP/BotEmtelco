@@ -44,7 +44,9 @@ def build_system_prompt(
         conversation.customer_status is CustomerFlowStatus.VERIFIED
         and conversation.verified_customer_id is not None
     )
-
+    warranty_draft = conversation.warranty_claim_draft.model_dump(
+        mode="json",
+    )
     registration_in_progress = (
         conversation.customer_status is CustomerFlowStatus.COLLECTING_REGISTRATION
     )
@@ -60,6 +62,7 @@ def build_system_prompt(
             conversation.pending_action.value if conversation.pending_action is not None else None
         ),
         "pending_reference": conversation.pending_reference,
+        "warranty_claim_draft": warranty_draft,
     }
 
     serialized_state = json.dumps(
@@ -81,9 +84,14 @@ def build_system_prompt(
         "identificación.\n"
         "- Si `registration_in_progress` es verdadero, continúa el registro "
         "iniciado previamente.\n"
+        "- No menciones al usuario los nombres técnicos de estos campos."
         "- Si existe `pending_action`, retómala después de verificar o registrar "
         "al cliente.\n"
         "- Usa `pending_reference` únicamente como dato de la operación "
         "pendiente.\n"
+        "- Usa `warranty_claim_draft` para continuar una consulta, creación de "
+        "ticket o escalamiento sin volver a pedir datos que ya existen.\n"
+        "- Los valores nulos de `warranty_claim_draft` representan información "
+        "que todavía no ha sido recopilada.\n"
         "- No menciones al usuario los nombres técnicos de estos campos."
     )
