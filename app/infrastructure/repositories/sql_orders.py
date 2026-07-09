@@ -16,7 +16,7 @@ actualización.
 
 from sqlalchemy import desc, select, update
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.exceptions import RepositoryError
 from app.application.ports.repositories import OrderRepository
@@ -48,7 +48,7 @@ class SqlOrderRepository(OrderRepository):
 
     def __init__(
         self,
-        db: Session,
+        db: AsyncSession,
     ) -> None:
 
         self._db = db
@@ -88,7 +88,7 @@ class SqlOrderRepository(OrderRepository):
         )
 
         try:
-            models = self._db.scalars(statement).all()
+            models = (await self._db.scalars(statement)).all()
 
         except SQLAlchemyError as exc:
             raise RepositoryError("No fue posible consultar los pedidos del cliente") from exc
@@ -128,7 +128,7 @@ class SqlOrderRepository(OrderRepository):
         )
 
         try:
-            model = self._db.scalar(statement)
+            model = await self._db.scalar(statement)
 
         except SQLAlchemyError as exc:
             raise RepositoryError("No fue posible consultar el pedido del cliente") from exc
@@ -185,12 +185,12 @@ class SqlOrderRepository(OrderRepository):
         )
 
         try:
-            model = self._db.scalars(statement).one_or_none()
+            model = (await self._db.scalars(statement)).one_or_none()
 
-            self._db.commit()
+            await self._db.commit()
 
         except SQLAlchemyError as exc:
-            self._db.rollback()
+            await self._db.rollback()
 
             raise RepositoryError("No fue posible actualizar la dirección del pedido") from exc
 

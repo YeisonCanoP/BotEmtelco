@@ -18,7 +18,7 @@ Responsabilidades principales:
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.exceptions import (
     CustomerConflictError,
@@ -45,13 +45,14 @@ class SqlCustomerRepository(CustomerRepository):
         _db: Sesión SQLAlchemy activa usada para consultar y persistir clientes.
     """
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: AsyncSession) -> None:
         """
         Inicializa el repositorio con una sesión de base de datos.
 
         Args:
-            db: Sesión SQLAlchemy activa. Normalmente es creada por la capa de
-                infraestructura y entregada mediante inyección de dependencias.
+            db: Sesión SQLAlchemy asíncrona activa. Normalmente es creada por la
+                capa de infraestructura y entregada mediante inyección de
+                dependencias.
         """
 
         self._db = db
@@ -80,7 +81,7 @@ class SqlCustomerRepository(CustomerRepository):
         """
 
         try:
-            model = self._db.get(
+            model = await self._db.get(
                 CustomerModel,
                 identification,
             )
@@ -121,7 +122,7 @@ class SqlCustomerRepository(CustomerRepository):
         )
 
         try:
-            model = self._db.scalar(statement)
+            model = await self._db.scalar(statement)
         except SQLAlchemyError as exc:
             raise RepositoryError("No fue posible consultar el correo del cliente") from exc
 
@@ -171,11 +172,11 @@ class SqlCustomerRepository(CustomerRepository):
         self._db.add(model)
 
         try:
-            self._db.commit()
-            self._db.refresh(model)
+            await self._db.commit()
+            await self._db.refresh(model)
 
         except IntegrityError as exc:
-            self._db.rollback()
+            await self._db.rollback()
 
             conflict_field = self._get_conflict_field(exc)
 
@@ -185,7 +186,7 @@ class SqlCustomerRepository(CustomerRepository):
             raise RepositoryError("No fue posible registrar el cliente") from exc
 
         except SQLAlchemyError as exc:
-            self._db.rollback()
+            await self._db.rollback()
 
             raise RepositoryError("No fue posible registrar el cliente") from exc
 

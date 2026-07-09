@@ -25,6 +25,7 @@ from openai.types.responses import (
     EasyInputMessageParam,
     FunctionToolParam,
     ResponseFunctionToolCall,
+    ResponseFunctionToolCallParam,
     ResponseInputParam,
     ResponseTextConfigParam,
 )
@@ -92,10 +93,10 @@ class OpenAIProvider:
         """
         Genera una respuesta o solicitudes de herramientas mediante OpenAI.
 
-        Cuando la solicitud no contiene resultados de herramientas, se envía el
-        historial conversacional completo junto con las herramientas disponibles.
-        Cuando existen resultados de herramientas, se envían esos resultados
-        vinculados a la respuesta anterior mediante `previous_response_id`.
+        La llamada es stateless (`store=False`): siempre se envía el historial
+        conversacional completo. Cuando la ronda incluye resultados de
+        herramientas, se adjuntan además las llamadas que los originaron y sus
+        salidas, sin depender de que el proveedor almacene la conversación.
 
         Args:
             request: Solicitud normalizada con instrucciones del sistema,
@@ -122,11 +123,11 @@ class OpenAIProvider:
         }
 
         logger.info(
-            "Sending OpenAI request model=%s tools=%s tool_results=%s previous_response_id=%s",
+            "Sending OpenAI request model=%s tools=%s tool_calls=%s tool_results=%s",
             self._model,
             len(tools),
+            len(request.tool_calls),
             len(request.tool_results),
-            request.previous_response_id,
         )
 
         try:
@@ -135,12 +136,11 @@ class OpenAIProvider:
                 instructions=request.instructions,
                 input=input_items,
                 tools=tools,
-                previous_response_id=request.previous_response_id,
                 parallel_tool_calls=True,
                 reasoning=reasoning,
                 text=text,
                 max_output_tokens=self._settings.openai_max_output_tokens,
-                store=True,
+                store=False,
                 stream=False,
             )
         except OpenAIError as exc:
@@ -192,10 +192,11 @@ class OpenAIProvider:
         """
         Construye la entrada enviada a OpenAI Responses API.
 
-        Si la solicitud contiene resultados de herramientas, se envían
-        únicamente esos resultados. El historial previo queda asociado mediante
-        `previous_response_id`. Si no hay resultados de herramientas, se envía
-        el historial conversacional normal.
+        La entrada es *stateless*: siempre se envía el historial conversacional
+        completo. Cuando la ronda incluye resultados de herramientas, además se
+        adjuntan las llamadas de herramientas que los originaron y sus salidas,
+        en ese orden. De esta forma el proveedor reconstruye el contexto sin
+        necesidad de almacenar la conversación (`store=False`).
 
         Args:
             request: Solicitud normalizada de la aplicación.
@@ -203,10 +204,14 @@ class OpenAIProvider:
         Returns:
             ResponseInputParam: Entrada compatible con Responses API.
         """
-        if request.tool_results:
-            return [self._to_openai_tool_result(result) for result in request.tool_results]
+        input_items: ResponseInputParam = [
+            self._to_openai_message(message) for message in request.messages
+        ]
 
-        return [self._to_openai_message(message) for message in request.messages]
+        input_items.extend(self._to_openai_tool_call(call) for call in request.tool_calls)
+        input_items.extend(self._to_openai_tool_result(result) for result in request.tool_results)
+
+        return input_items
 
     @staticmethod
     def _to_openai_message(
@@ -253,6 +258,36 @@ class OpenAIProvider:
             "description": tool.description,
             "parameters": cls._make_schema_strict(tool.parameters),
             "strict": True,
+        }
+
+    @staticmethod
+    def _to_openai_tool_call(
+        call: ToolCallDTO,
+    ) -> ResponseFunctionToolCallParam:
+        """
+        Reconstruye una llamada de herramienta como ítem de entrada de OpenAI.
+
+        En el flujo stateless, cada llamada que el modelo solicitó debe volver a
+        enviarse junto con su salida para que el proveedor entienda qué
+        herramientas ya se ejecutaron durante el turno.
+
+        Los argumentos se serializan como JSON, igual que los recibió el modelo.
+
+        Args:
+            call: Llamada de herramienta previamente solicitada por el modelo.
+
+        Returns:
+            ResponseFunctionToolCallParam: Ítem `function_call` compatible con
+            Responses API.
+        """
+        return {
+            "type": "function_call",
+            "call_id": call.call_id,
+            "name": call.name,
+            "arguments": json.dumps(
+                call.arguments,
+                ensure_ascii=False,
+            ),
         }
 
     @staticmethod

@@ -24,7 +24,7 @@ Responsabilidades principales:
 
 from sqlalchemy import and_, desc, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.exceptions import RepositoryError
 from app.application.ports.repositories import WarrantyRepository
@@ -89,13 +89,13 @@ class SqlWarrantyRepository(WarrantyRepository):
 
     def __init__(
         self,
-        db: Session,
+        db: AsyncSession,
     ) -> None:
         """
         Inicializa el repositorio.
 
         Args:
-            db: Sesión SQLAlchemy asociada a la petición actual.
+            db: Sesión SQLAlchemy asíncrona asociada a la petición actual.
         """
 
         self._db = db
@@ -157,7 +157,7 @@ class SqlWarrantyRepository(WarrantyRepository):
         )
 
         try:
-            models = self._db.scalars(statement).all()
+            models = (await self._db.scalars(statement)).all()
 
         except SQLAlchemyError as exc:
             raise RepositoryError("No fue posible consultar las garantías del pedido") from exc
@@ -215,7 +215,7 @@ class SqlWarrantyRepository(WarrantyRepository):
         )
 
         try:
-            model = self._db.scalar(statement)
+            model = await self._db.scalar(statement)
 
         except SQLAlchemyError as exc:
             raise RepositoryError("No fue posible consultar la garantía del producto") from exc
@@ -292,7 +292,7 @@ class SqlWarrantyRepository(WarrantyRepository):
         )
 
         try:
-            model = self._db.scalar(statement)
+            model = await self._db.scalar(statement)
 
         except SQLAlchemyError as exc:
             raise RepositoryError("No fue posible consultar los reclamos de la garantía") from exc
@@ -358,7 +358,7 @@ class SqlWarrantyRepository(WarrantyRepository):
         )
 
         try:
-            owned_warranty_id = self._db.scalar(ownership_statement)
+            owned_warranty_id = await self._db.scalar(ownership_statement)
 
         except SQLAlchemyError as exc:
             raise RepositoryError("No fue posible validar la garantía del cliente") from exc
@@ -378,18 +378,18 @@ class SqlWarrantyRepository(WarrantyRepository):
         self._db.add(model)
 
         try:
-            self._db.commit()
-            self._db.refresh(model)
+            await self._db.commit()
+            await self._db.refresh(model)
 
         except IntegrityError as exc:
-            self._db.rollback()
+            await self._db.rollback()
 
             raise RepositoryError(
                 "No fue posible crear el ticket porque su identificador ya existe"
             ) from exc
 
         except SQLAlchemyError as exc:
-            self._db.rollback()
+            await self._db.rollback()
 
             raise RepositoryError("No fue posible registrar el reclamo de garantía") from exc
 
@@ -448,7 +448,7 @@ class SqlWarrantyRepository(WarrantyRepository):
         )
 
         try:
-            model = self._db.scalar(statement)
+            model = await self._db.scalar(statement)
 
         except SQLAlchemyError as exc:
             raise RepositoryError("No fue posible consultar el ticket de garantía") from exc
@@ -531,11 +531,11 @@ class SqlWarrantyRepository(WarrantyRepository):
         )
 
         try:
-            model = self._db.scalars(statement).one_or_none()
-            self._db.commit()
+            model = (await self._db.scalars(statement)).one_or_none()
+            await self._db.commit()
 
         except SQLAlchemyError as exc:
-            self._db.rollback()
+            await self._db.rollback()
 
             raise RepositoryError("No fue posible escalar el reclamo de garantía") from exc
 

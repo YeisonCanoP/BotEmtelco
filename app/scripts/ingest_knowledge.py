@@ -72,7 +72,7 @@ async def ingest_pending_knowledge(
     embedding_provider = OpenAIEmbeddingProvider(settings)
     total_indexed = 0
 
-    with SessionLocal() as db:
+    async with SessionLocal() as db:
         vector_store = PgVectorStore(
             db=db,
             settings=settings,

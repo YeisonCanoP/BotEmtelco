@@ -27,7 +27,7 @@ from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.embedding_provider import EmbeddingProvider
 from app.application.ports.llm_provider import LLMProvider
@@ -87,7 +87,7 @@ from app.infrastructure.session.redis_session_store import (
 from app.infrastructure.vectorstore.pgvector_store import PgVectorStore
 
 DbSession = Annotated[
-    Session,
+    AsyncSession,
     Depends(get_db),
 ]
 

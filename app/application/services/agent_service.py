@@ -135,8 +135,7 @@ class AgentService:
 
         Raises:
             LLMServiceError: Si el modelo excede el límite de rondas de
-                herramientas, solicita herramientas sin `response_id` o no
-                produce una respuesta final.
+                herramientas o no produce una respuesta final.
         """
 
         conversation = await self._get_conversation(request)
@@ -161,15 +160,18 @@ class AgentService:
         )
 
         tool_rounds = 0
+        accumulated_tool_calls: list[ToolCallDTO] = []
+        accumulated_tool_results: list[ToolResultDTO] = []
 
         while llm_response.tool_calls:
             if tool_rounds >= self._max_tool_rounds:
                 raise LLMServiceError("El agente excedió el límite de rondas de herramientas")
 
-            if llm_response.response_id is None:
-                raise LLMServiceError("El modelo solicitó herramientas sin response_id")
+            accumulated_tool_calls.extend(llm_response.tool_calls)
 
-            tool_results = await self._execute_tool_calls(llm_response.tool_calls)
+            round_results = await self._execute_tool_calls(llm_response.tool_calls)
+
+            accumulated_tool_results.extend(round_results)
 
             tool_rounds += 1
 
@@ -177,16 +179,19 @@ class AgentService:
                 "Tool round completed session_id=%s round=%s calls=%s",
                 request.session_id,
                 tool_rounds,
-                len(tool_results),
+                len(round_results),
             )
 
+            # Flujo stateless: se reenvía el historial completo junto con todas
+            # las llamadas de herramientas y sus resultados acumulados en el
+            # turno. Así el proveedor no necesita almacenar la conversación.
             llm_response = await self._llm_provider.complete(
                 LLMRequestDTO(
                     instructions=build_system_prompt(conversation),
                     messages=conversation.messages,
                     tools=tool_definitions,
-                    tool_results=tool_results,
-                    previous_response_id=llm_response.response_id,
+                    tool_calls=accumulated_tool_calls,
+                    tool_results=accumulated_tool_results,
                 )
             )
 

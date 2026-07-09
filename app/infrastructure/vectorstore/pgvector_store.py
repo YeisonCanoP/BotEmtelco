@@ -25,7 +25,7 @@ from typing import Any, cast
 from sqlalchemy import select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.exceptions import KnowledgeServiceError
 from app.application.ports.vector_store import VectorStore
@@ -60,14 +60,14 @@ class PgVectorStore(VectorStore):
 
     def __init__(
         self,
-        db: Session,
+        db: AsyncSession,
         settings: Settings | None = None,
     ) -> None:
         """
         Inicializa el almacenamiento vectorial.
 
         Args:
-            db: Sesión SQLAlchemy activa.
+            db: Sesión SQLAlchemy asíncrona activa.
             settings: Configuración opcional de la aplicación. Si no se
                 proporciona, se obtiene mediante `get_settings`.
         """
@@ -132,7 +132,7 @@ class PgVectorStore(VectorStore):
         )
 
         try:
-            rows = self._db.execute(statement).all()
+            rows = (await self._db.execute(statement)).all()
 
         except SQLAlchemyError as exc:
             raise KnowledgeServiceError("No fue posible consultar la base de conocimiento") from exc
@@ -195,7 +195,7 @@ class PgVectorStore(VectorStore):
         )
 
         try:
-            models = self._db.scalars(statement).all()
+            models = (await self._db.scalars(statement)).all()
 
         except SQLAlchemyError as exc:
             raise KnowledgeServiceError(
@@ -268,20 +268,20 @@ class PgVectorStore(VectorStore):
 
                 result = cast(
                     CursorResult[Any],
-                    self._db.execute(statement),
+                    await self._db.execute(statement),
                 )
 
                 if result.rowcount != 1:
                     raise KnowledgeServiceError(f"No existe el fragmento {item.chunk_id}")
 
-            self._db.commit()
+            await self._db.commit()
 
         except KnowledgeServiceError:
-            self._db.rollback()
+            await self._db.rollback()
             raise
 
         except SQLAlchemyError as exc:
-            self._db.rollback()
+            await self._db.rollback()
 
             raise KnowledgeServiceError("No fue posible guardar los embeddings") from exc
 

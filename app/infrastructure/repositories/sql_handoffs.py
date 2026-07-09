@@ -9,7 +9,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.exceptions import RepositoryError
 from app.application.ports.repositories import HumanHandoffRepository
@@ -33,9 +33,9 @@ class SqlHumanHandoffRepository(HumanHandoffRepository):
 
     def __init__(
         self,
-        db: Session,
+        db: AsyncSession,
     ) -> None:
-        """Inicializa el repositorio con la sesión de la petición."""
+        """Inicializa el repositorio con la sesión asíncrona de la petición."""
 
         self._db = db
 
@@ -59,7 +59,7 @@ class SqlHumanHandoffRepository(HumanHandoffRepository):
         )
 
         try:
-            model = self._db.scalar(statement)
+            model = await self._db.scalar(statement)
         except SQLAlchemyError as exc:
             raise RepositoryError(
                 "No fue posible consultar la solicitud de atención humana"
@@ -97,10 +97,10 @@ class SqlHumanHandoffRepository(HumanHandoffRepository):
         self._db.add(model)
 
         try:
-            self._db.commit()
-            self._db.refresh(model)
+            await self._db.commit()
+            await self._db.refresh(model)
         except IntegrityError as exc:
-            self._db.rollback()
+            await self._db.rollback()
 
             existing = await self.get_active_by_session(session_id)
 
@@ -109,7 +109,7 @@ class SqlHumanHandoffRepository(HumanHandoffRepository):
 
             raise RepositoryError("No fue posible crear la solicitud de atención humana") from exc
         except SQLAlchemyError as exc:
-            self._db.rollback()
+            await self._db.rollback()
             raise RepositoryError("No fue posible crear la solicitud de atención humana") from exc
 
         return self._to_entity(model), True

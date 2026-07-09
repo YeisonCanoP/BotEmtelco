@@ -9,7 +9,7 @@ precio máximo y disponibilidad en inventario.
 from decimal import Decimal
 
 from sqlalchemy import String, cast, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.ports.repositories import CatalogRepository
 from app.domain.entities import Product
@@ -24,7 +24,7 @@ class SqlCatalogRepository(CatalogRepository):
     ORM de infraestructura en entidades de dominio.
     """
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
     async def search(
@@ -78,7 +78,7 @@ class SqlCatalogRepository(CatalogRepository):
 
         statement = statement.order_by(ProductModel.price).limit(max(1, min(limit, 50)))
 
-        models = self._db.scalars(statement).all()
+        models = (await self._db.scalars(statement)).all()
 
         return [self._to_entity(model) for model in models]
 
@@ -106,7 +106,7 @@ class SqlCatalogRepository(CatalogRepository):
 
         statement = select(ProductModel).where(ProductModel.sku.in_(normalized_skus))
 
-        models = self._db.scalars(statement).all()
+        models = (await self._db.scalars(statement)).all()
 
         models_by_sku = {model.sku: model for model in models}
 

@@ -107,43 +107,50 @@ class LLMRequestDTO(BaseModel):
     Está diseñado para soportar tanto una primera solicitud al LLM como la
     continuación de una respuesta luego de ejecutar herramientas externas.
 
+    El flujo de herramientas es *stateless*: el proveedor no depende de que el
+    LLM guarde la conversación en sus servidores. En cada ronda se reenvía el
+    historial completo junto con las llamadas de herramientas ya solicitadas y
+    sus resultados. Esto evita persistir datos personales del cliente en el
+    proveedor externo.
+
     Attributes:
         instructions: Instrucciones generales del sistema o del agente.
         messages: Historial conversacional que será enviado al modelo.
         tools: Lista de herramientas disponibles para que el modelo pueda
             solicitarlas cuando las necesite.
+        tool_calls: Llamadas de herramientas que el modelo solicitó y que ya
+            fueron ejecutadas por la aplicación. Se reenvían para reconstruir el
+            contexto sin depender del estado del proveedor.
         tool_results: Resultados de herramientas previamente ejecutadas por la
             aplicación.
-        previous_response_id: Identificador de una respuesta previa que debe
-            continuarse. Es requerido cuando se envían resultados de
-            herramientas.
     """
 
     instructions: str = Field(min_length=1)
     messages: list[ChatMessageDTO]
     tools: list[ToolDefinitionDTO] = Field(default_factory=list)
+    tool_calls: list[ToolCallDTO] = Field(default_factory=list)
     tool_results: list[ToolResultDTO] = Field(default_factory=list)
-    previous_response_id: str | None = None
 
     @model_validator(mode="after")
     def validate_tool_continuation(self) -> Self:
         """
-        Valida que los resultados de herramientas continúen una respuesta previa.
+        Valida la coherencia entre llamadas y resultados de herramientas.
 
         Cuando `tool_results` contiene información, significa que la aplicación
-        ya ejecutó una o más herramientas solicitadas por el modelo. En ese caso,
-        se necesita `previous_response_id` para indicar qué respuesta del LLM se
-        está continuando.
+        ya ejecutó una o más herramientas solicitadas por el modelo. En un flujo
+        stateless, esos resultados deben ir acompañados de las llamadas
+        (`tool_calls`) que los originaron para reconstruir el contexto en el
+        proveedor.
 
         Returns:
             Self: Instancia validada de `LLMRequestDTO`.
 
         Raises:
-            ValueError: Si se envían resultados de herramientas sin indicar
-                `previous_response_id`.
+            ValueError: Si se envían resultados de herramientas sin las llamadas
+                que los originaron.
         """
-        if self.tool_results and self.previous_response_id is None:
-            raise ValueError("Los resultados de herramientas requieren previous_response_id")
+        if self.tool_results and not self.tool_calls:
+            raise ValueError("Los resultados de herramientas requieren sus tool_calls")
 
         return self
 

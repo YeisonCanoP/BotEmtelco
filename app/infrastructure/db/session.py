@@ -3,45 +3,48 @@ Configuración de sesiones de base de datos.
 
 Este módulo define la conexión principal de SQLAlchemy y la fábrica de
 sesiones utilizada por la aplicación para acceder a la base de datos.
+
+La conexión es asíncrona: se apoya en `psycopg` (psycopg3), que soporta el
+modo async de forma nativa. Esto evita bloquear el event loop de la API cuando
+una consulta a PostgreSQL está en curso.
 """
 
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.infrastructure.config import get_settings
 
 settings = get_settings()
 
-engine = create_engine(
+engine = create_async_engine(
     settings.database_url,
     pool_pre_ping=True,
 )
 
-SessionLocal = sessionmaker(
+SessionLocal = async_sessionmaker(
     bind=engine,
-    class_=Session,
+    class_=AsyncSession,
     autocommit=False,
     autoflush=False,
     expire_on_commit=False,
 )
 
 
-def get_db() -> Generator[Session, None, None]:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Crea y entrega una sesión de base de datos.
+    Crea y entrega una sesión asíncrona de base de datos.
 
     La sesión se mantiene disponible durante la ejecución de la operación que
     la consume. Al finalizar, se cierra automáticamente para liberar la
     conexión asociada al pool de SQLAlchemy.
 
     Yields:
-        Session: Sesión activa de SQLAlchemy.
+        AsyncSession: Sesión activa de SQLAlchemy en modo asíncrono.
     """
-    db = SessionLocal()
-
-    try:
+    async with SessionLocal() as db:
         yield db
-    finally:
-        db.close()
