@@ -1,4 +1,4 @@
-# Prueba técnica: agente IA para atención retail
+# agente IA para atención retail
 
 Solución desarrollada para automatizar la atención de una tienda de productos electrónicos. El
 agente puede acompañar al cliente desde una consulta comercial hasta procesos de postventa, usando
